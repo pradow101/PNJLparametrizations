@@ -12,9 +12,9 @@ a(T) = a0 + a1*(To/T) + a2*(To/T)^2
 
 b(T) = b3*(To/T)^3
 
-potplkvlog(phi, phib, T) = T^4 * (-0.5*a(T)*phib*phi + b(T)*log(1 - 6*phib*phi + 4(phib^3 + phi^3) - 3(phib*phi)^2))
+potplkvlog(phi, phib, T) = T^4 * (-0.5*a(T)*phib*phi + b(T)*log(complex(1 - 6*phib*phi + 4*(phib^3 + phi^3) - 3*(phib*phi)^2)))
 
-potplkvmu(phi, phib, mu, T) = (A0*T^4 + A1*mu^4 + A2*T^2*mu^2)*phib*phi + A3*To^4*log(1 - 6*phib*phi + 4(phib^3 + phi^3) - 3(phib*phi)^2) 
+potplkvmu(phi, phib, mu, T) = (A0*(T^4) + A1*(mu^4) + A2*(T^2)*(mu^2))*phib*phi + A3*(To^4)*log(complex(1 - 6*phib*phi + 4*(phib^3 + phi^3) - 3*(phib*phi)^2)))
 
 function Imed(phi,phib,M,mu,T)
     quadgk(p -> p^2 * (zminus(phi,phib,M,mu,T,p) + zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
