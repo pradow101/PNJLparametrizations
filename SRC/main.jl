@@ -39,7 +39,7 @@ begin
         philkmuvals = zeros(length(T_vals))
         phibplkmuvals = zeros(length(T_vals))
         Mplkmuvals = zeros(length(T_vals))
-        chute = [0.1,0.1,1.2]
+        chute = [0.01,0.01,0.4]
         Threads.@threads for i in eachindex(T_vals)
             T = T_vals[i]
             solution = gapplkvmusolver(mu, T, chute)
@@ -54,11 +54,11 @@ end
 
 
 let 
-    Tvalores = range(0.01,0.5,20)
+    Tvalores = range(0.01,0.4,20)
     mu = 0.1
-    #philog, phiblog, Mlog, Tvals = Trangelogsolver(mu, Tvalores)
-    phiplkmu, phibplkmu, Mplkmu, Tvals = Trangeplkvmusolver(mu, Tvalores)
+    philog, phiblog, Mlog, Tvals = Trangelogsolver(mu, Tvalores)
+    #phiplkmu, phibplkmu, Mplkmu, Tvals = Trangeplkvmusolver(mu, Tvalores)
 
-    plot(Tvals, phiplkmu)
-    plot!(Tvals, Mplkmu)
+    plot(Tvals, philog)
+    plot!(Tvals, Mlog)
 end
