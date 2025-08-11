@@ -3,8 +3,8 @@ MeV = 1e-3
 
 Nc = 3
 Nf = 2
-m = 5.6MeV
-lamb = 587.9MeV
+m = 5.5MeV
+lamb = 650MeV
 G = 10.1
 
 a0 = 3.51

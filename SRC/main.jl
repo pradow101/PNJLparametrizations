@@ -23,8 +23,8 @@ begin
         philogvals = zeros(length(T_vals))
         phiblogvals = zeros(length(T_vals))
         Mlogvals = zeros(length(T_vals))
-        chute = [0.01,0.01,1.2]
-        Threads.@threads for i in eachindex(T_vals)
+        chute = [0.01,0.01,1]
+        for i in 1:length(T_vals)
             T = T_vals[i]
             solution = gaplogsolver(mu, T, chute)
             philogvals[i] = solution[1]
@@ -40,7 +40,7 @@ begin
         phibplkmuvals = zeros(length(T_vals))
         Mplkmuvals = zeros(length(T_vals))
         chute = [0.01,0.01,0.4]
-        Threads.@threads for i in eachindex(T_vals)
+        for i in eachindex(T_vals)
             T = T_vals[i]
             solution = gapplkvmusolver(mu, T, chute)
             philkmuvals[i] = solution[1]
@@ -54,7 +54,7 @@ end
 
 
 let 
-    Tvalores = range(0.01,0.4,20)
+    Tvalores = range(0.01,0.3,20)
     mu = 0.1
     philog, phiblog, Mlog, Tvals = Trangelogsolver(mu, Tvalores)
     #phiplkmu, phibplkmu, Mplkmu, Tvals = Trangeplkvmusolver(mu, Tvalores)
