@@ -1,6 +1,6 @@
 begin
-    include("parameters.jl")
-    include("functions.jl")
+    include("parametersmu.jl")
+    include("functionsmu.jl")
 
     using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations
 end
@@ -59,7 +59,7 @@ begin
         μphiblogvals = zeros(length(mu_vals))
         μMlogvals = zeros(length(mu_vals))
         chute = [0.01,0.01,1]
-        for i in eachindex(mu_vals)
+        Threads.@threads for i in eachindex(mu_vals)
             mu = mu_vals[i]
             solution = gaplogsolver(mu, T, chute)
             μphilogvals[i] = solution[1]
@@ -75,7 +75,7 @@ begin
         plkvphibvals = zeros(length(mu_vals))
         plkvMvals = zeros(length(mu_vals))
         chute = [0.01,0.01,1]
-        for i in eachindex(mu_vals)
+        Threads.@threads for i in eachindex(mu_vals)
             mu = mu_vals[i]
             solution = gapplkvmusolver(mu, T, chute)
             plkvphivals[i] = solution[1]
@@ -89,11 +89,17 @@ end
 
 begin
     T = 0.1
-    mu_vals = range(0,0.6, length=30)
+    mu_vals = range(0,0.6, length=10)
     aphi, bphib, cM, dmu = murangelog(T, mu_vals)
 
     plot(dmu, cM)
 end
+
+begin
+    plot(dmu, cM)
+    plot!(dmu, aphi)
+end
+
 
 begin
     plkvphi, plkvphib, plkvM, muv = murangemuplkv(T, mu_vals)
