@@ -12,7 +12,7 @@ zminus(phi,phib,M,mu,T,p) = log(1 + 3*(phi + phib*exp(-(Ep(p,M) - mu)/T))*exp(-(
 
 zplus(phi,phib,M,mu,T,p) = log(1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T))
 
-function U(T, phi, phib)
+function U(phi, phib, T)
     term1 = -0.5 * aT(T) * phi * phib
     term2 = bT(T) * log(1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2)
     return T^4 * (term1 + term2)
@@ -24,11 +24,11 @@ function Imed(phi,phib,M,mu,T)
 end
 
 function Ivac(M)
-    quadgk(p -> p^2 * Ep(p,M), 0, lamb)[1]
+    quadgk(p -> p^2 * Ep(p,M), 0, L)[1]
 end
 
 function potentiallog(phi,phib,mu,T,M)
-    (M-m)^2/4G - T*Nf*Imed(phi,phib,M,mu,T)/π^2 - 3*Nf*Ivac(M)/π^2 + potplkv(phi,phib,T)
+    (M-m)^2/4G - T*Nf*Imed(phi,phib,M,mu,T)/π^2 - 3*Nf*Ivac(M)/π^2 + U(phi, phib, T)
 end
 
 function dMlog(phi,phib,mu,T,M)
