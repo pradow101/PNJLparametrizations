@@ -53,12 +53,49 @@ begin
 end
 
 
-let 
-    Tvalores = range(0.01,0.3,20)
-    mu = 0.1
-    philog, phiblog, Mlog, Tvals = Trangelogsolver(mu, Tvalores)
-    #phiplkmu, phibplkmu, Mplkmu, Tvals = Trangeplkvmusolver(mu, Tvalores)
+begin
+    function murangelog(T, mu_vals)
+        μphilogvals = zeros(length(mu_vals))
+        μphiblogvals = zeros(length(mu_vals))
+        μMlogvals = zeros(length(mu_vals))
+        chute = [0.01,0.01,1]
+        for i in eachindex(mu_vals)
+            mu = mu_vals[i]
+            solution = gaplogsolver(mu, T, chute)
+            μphilogvals[i] = solution[1]
+            μphiblogvals[i] = solution[2]
+            μMlogvals[i] = solution[3]
+            chute = solution
+        end
+        return μphilogvals, μphiblogvals, μMlogvals, mu_vals
+    end
 
-    plot(Tvals, philog)
-    plot!(Tvals, Mlog)
+    function murangemuplkv(T, mu_vals)
+        plkvphivals = zeros(length(mu_vals))
+        plkvphibvals = zeros(length(mu_vals))
+        plkvMvals = zeros(length(mu_vals))
+        chute = [0.01,0.01,1]
+        for i in eachindex(mu_vals)
+            mu = mu_vals[i]
+            solution = gapplkvmusolver(mu, T, chute)
+            plkvphivals[i] = solution[1]
+            plkvphibvals[i] = solution[2]
+            plkvMvals[i] = solution[3]
+            chute = solution
+        end
+        return plkvphivals, plkvphibvals, plkvMvals, mu_vals
+    end
+end
+
+begin
+    T = 0.1
+    mu_vals = range(0,0.6, length=30)
+    aphi, bphib, cM, dmu = murangelog(T, mu_vals)
+
+    plot(dmu, cM)
+end
+
+begin
+    plkvphi, plkvphib, plkvM, muv = murangemuplkv(T, mu_vals)
+    plot(muv, plkvM)
 end
