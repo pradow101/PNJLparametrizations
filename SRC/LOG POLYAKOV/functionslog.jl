@@ -14,7 +14,7 @@ zplus(phi,phib,M,mu,T,p) = log(1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(E
 
 function U(phi, phib, T)
     term1 = -0.5 * aT(T) * phi * phib
-    term2 = bT(T) * log(1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2)
+    term2 = bT(T) * log(1 - 6*phib*phi + 4*(phib^3 + phi^3) - 3*(phib*phi)^2)
     return T^4 * (term1 + term2)
 end
 
