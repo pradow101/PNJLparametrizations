@@ -2,41 +2,37 @@ begin
     include("parameterslog.jl")
     include("functionslog.jl")
 
-    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations
+    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve
 end
 
 
-function gaplogsolver(mu, T, chute)
-    sist = nlsolve(x -> (dphilog(x[1], x[2], mu, T, x[3]), dphiblog(x[1], x[2], mu, T, x[3]), dMlog(x[1], x[2], mu, T, x[3])), chute)
-    return sist.zero
+function gapsystem!(du, u, p)
+    du[1] = dphilog(u[1],u[2],p[1],p[2],u[3])
+    du[2] = dphiblog(u[1],u[2],p[1],p[2],u[3])
+    du[3] = dMlog(u[1],u[2],p[1],p[2],u[3])
 end
 
-begin
-    function Musolverlog(T, muvals)
-        μphilogvals = zeros(length(muvals))
-        μphiblogvals = zeros(length(muvals))
-        μMlogvals = zeros(length(muvals))
-        chute = [0.01, 0.01, 0.4]
-        Threads.@threads for i in eachindex(muvals)
-            mu = muvals[i]
-            solution = gaplogsolver(mu, T, chute)
-            μphilogvals[i] = solution[1]
-            μphiblogvals[i] = solution[2]
-            μMlogvals[i] = solution[3]
-            chute = solution
-        end
-        return μphilogvals, μphiblogvals, μMlogvals, muvals
+function gapsolver(mu, T)
+    chutealto = [0.01,0.01,1.0]
+    chutebaixo = [1.0,1.0,0.01]
+    ad = AutoFiniteDiff()
+
+    probalto = NonlinearProblem(gapsystem!,chutealto, [mu, T])
+    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
+    probbaixo = NonlinearProblem(gapsystem!,chutebaixo, [mu, T])
+    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
+
+    if abs(solalto.u[1] - solbaixo.u[1]) < 1e-4
+        return [solalto.u[1], solalto.u[2], solalto.u[3], solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
+    elseif potentiallog(solbaixo.u[1], solbaixo.u[2], mu, T, solbaixo.u[3]) < potentiallog(solalto.u[1], solalto.u[2], mu, T, solalto.u[3])
+        return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3], solalto.u[1], solalto.u[2], solalto.u[3]]
     end
+    solalto.u, solbaixo.u
 end
+
+
+
 
 begin
-    T = 0.1
-    murange = range(0, 0.7, length=50)
-    phia, phiba, Ma, mua = Musolverlog(T, murange)
+    sols1, sols2 = gapsolver(0.2, 0.1)
 end
-
-begin
-    plot(mua, Ma)
-end
-
-#o potencial tem que ser diferente, não tá fazendo sentido
