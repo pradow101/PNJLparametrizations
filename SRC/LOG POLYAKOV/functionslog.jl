@@ -2,8 +2,19 @@ begin
     include("parameterslog.jl")
 end
 
-function Imed(phi,phib,M,mu,T)
-    quadgk(p -> p^2 * (zminus(phi,phib,M,mu,T,p) + zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
+aT(T) = a0 + a1*(T0/T) + a2*(T0/T)^2
+bT(T) = b3 * (T0/T)^3
+
+Ep(p,M) = sqrt(p^2 + M^2)
+
+Gc(phi, phib) = G*(1 - alpha1*(phi*phib) - alpha2*(phi^3 + phib^3))
+
+zminus(phi,phib,M,mu,T,p) = 1 + 3*phi*exp(-(Ep(p,M) - mu)/T) + 3*phib*exp(-2*(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T)
+
+zplus(phi,phib,M,mu,T,p) = 1 + 3*phib*exp(-(Ep(p,M) + mu)/T) + 3*phi*exp(-2*(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T)
+
+function Imed(phi,phib,mu,T,M)
+    quadgk(p -> p^2 * log(zminus(phi,phib,M,mu,T,p)*zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
 end
 
 function Ivac(M)
@@ -11,7 +22,7 @@ function Ivac(M)
 end
 
 function potentiallog(phi,phib,mu,T,M)
-    (M-m)^2/4G - T*Nf*Imed(phi,phib,M,mu,T)/π^2 - 3*Nf*Ivac(M)/π^2 + U(phi, phib, T)
+    (M-m)^2/(4*Gc(phi,phib)) - T*Nf*Imed(phi,phib,mu,T,M)/π^2 - 3*Nf*Ivac(M)/π^2 + U(phi, phib, T)
 end
 
 function dMlog(phi,phib,mu,T,M)
@@ -25,15 +36,6 @@ end
 function dphiblog(phi,phib,mu,T,M)
     ForwardDiff.derivative(phib_i -> potentiallog(phi, phib_i, mu, T, M), phib)
 end
-
-aT(T) = a0 + a1*(T0/T) + a2*(T0/T)^2
-bT(T) = b3 * (T0/T)^3
-
-Ep(p,M) = sqrt(p^2 + M^2)
-
-zminus(phi,phib,M,mu,T,p) = log(1 + 3*(phi + phib*exp(-(Ep(p,M) - mu)/T))*exp(-(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T))
-
-zplus(phi,phib,M,mu,T,p) = log(1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T))
 
 function U(phi, phib, T)
     term1 = -0.5 * aT(T) * phi * phib
