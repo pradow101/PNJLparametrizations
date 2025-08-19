@@ -8,6 +8,16 @@ end
 
 
 function gapsystem!(du, u, p)
+    #=Esse "clamp" restringe as soluções. Definitivamente não é o ideal quando o modelo é desconhecido, mas
+    sem isso o solver fica muito instável e não converge corretamente
+    =#
+
+    u[1] = clamp(u[1], 0.0, 1.0)
+    u[2] = clamp(u[2], 0.0, 1.0)
+    u[3] = max(u[3], 1e-5)
+
+    println("Guess: phi = ", round(u[1], digits=3), ", phib = ", round(u[2], digits=3), ", M = ", round(u[3], digits=3), " for μ = ", round(p[1], digits=3), ", T = ", round(p[2], digits=3))
+
     du[1] = dphilog(u[1],u[2],p[1],p[2],u[3])
     du[2] = dphiblog(u[1],u[2],p[1],p[2],u[3])
     du[3] = dMlog(u[1],u[2],p[1],p[2],u[3])
@@ -19,11 +29,11 @@ function gapsolver(mu, T)
     ad = AutoFiniteDiff()
 
     probalto = NonlinearProblem(gapsystem!,chutealto, [mu, T])
-    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
+    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8)
     probbaixo = NonlinearProblem(gapsystem!,chutebaixo, [mu, T])
-    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
+    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8)
 
-    if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
+    if abs(solalto.u[3] - solbaixo.u[3]) < 1e-3
         return [solalto.u[1], solalto.u[2], solalto.u[3], solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
     elseif potentiallog(solbaixo.u[1], solbaixo.u[2], mu, T, solbaixo.u[3]) < potentiallog(solalto.u[1], solalto.u[2], mu, T, solalto.u[3])
         return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3], solalto.u[1], solalto.u[2], solalto.u[3]]
@@ -33,12 +43,12 @@ end
  
 
 begin
-    gapsolver(0.15, 0.1)
+    gapsolver(0.2, 0.1)
 end
 
 function solvermurange(mu, T)
     sols = zeros(length(mu), 6)
-    for i in eachindex(mu)
+    Threads.@threads for i in eachindex(mu)
         sols[i, :] = gapsolver(mu[i], T)
     end
     return sols
@@ -46,58 +56,39 @@ end
 
 function solverTrange(mu, T)
     sols = zeros(length(T), 6)
-    for i in eachindex(T)
+    Threads.@threads for i in eachindex(T)
         sols[i, :] = gapsolver(mu, T[i])
     end
     return sols
 end
 
-begin
-    Trange = range(0.01,0.5,length=50)
-    mu = 0.1
-    sols = solverTrange(mu, Trange)
-end
-
-
-begin
-    Mrange = range(-0.6,0.6, length=100)
-    pot = [potentiallog(0.01, 0.01, 0.1, 0.6, M) for M in Mrange]
-    plot(Mrange, pot)
-end
-
-
-function gapsolver2(mu,T,chute)
-    sist = nlsolve(x -> [dphilog(x[1], x[2], mu, T, x[3]), dphiblog(x[1], x[2], mu, T, x[3]), dMlog(x[1], x[2], mu, T, x[3])], chute)
-    return sist.zero
-end
-
-
-function gapsolver2range(mu, T, chute)
-    sols = zeros(length(T), 3)
-    for i in eachindex(T)
-        sols[i, :] = gapsolver2(mu, T[i], chute)
-        chute = sols[i, :]
-    end
-    return sols
-end
-
-
-function gapsolver2murange(mu, T, chute)
-    sols = zeros(length(mu), 3)
-    for i in eachindex(mu)
-        sols[i, :] = gapsolver2(mu[i], T, chute)
-        chute = sols[i, :]
+function Tmusolver(mur, Tr)
+    sols = zeros(length(mur), 6, length(Tr))
+    Threads.@threads for i in eachindex(Tr)
+        sols[:, :, i] = solvermurange(mur, Tr[i])
     end
     return sols
 end
 
 
 begin
-    rangemu = range(0.0,0.5,length=100)
-    T = 0.05
-    solucao = gapsolver2murange(rangemu, T, [0.01,0.01,0.4])
+    mur = range(0, 0.6, length = 500)
+    T = 0.14
+    solarr = solvermurange(mur, T)
+    scatter(mur, solarr[:,3])
 end
 
+
+
 begin
-    plot(rangemu, solucao[:,3])
+    mur = range(0,0.6,length = 100)
+    Tr = range(0.01, 0.30, length = 50)
+    allsols = Tmusolver(mur, Tr)
 end
+
+
+begin
+    scatter(mur, [allsols[:, 3, 1], allsols[:, 3, 25], allsols[:, 3, 35]], xlabel = "μ [GeV]", ylabel = "M [GeV]")
+end
+
+

@@ -22,7 +22,7 @@ function Ivac(M)
 end
 
 function potentiallog(phi,phib,mu,T,M)
-    (M-m)^2/(4*Gc(phi,phib)) - T*Nf*Imed(phi,phib,mu,T,M)/π^2 - 3*Nf*Ivac(M)/π^2 + U(phi, phib, T)
+    (M-m)^2/(4*G) - T*Nf*Imed(phi,phib,mu,T,M)/π^2 - 3*Nf*Ivac(M)/π^2 + U(phi, phib, T)
 end
 
 function dMlog(phi,phib,mu,T,M)
