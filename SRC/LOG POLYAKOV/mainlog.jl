@@ -6,7 +6,6 @@ begin
     plotly()
 end
 
-
 function gapsystem!(du, u, p)
     #=Esse "clamp" restringe as soluções. Definitivamente não é o ideal quando o modelo é desconhecido, mas
     sem isso o solver fica muito instável e não converge corretamente
@@ -29,9 +28,9 @@ function gapsolver(mu, T)
     ad = AutoFiniteDiff()
 
     probalto = NonlinearProblem(gapsystem!,chutealto, [mu, T])
-    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8)
+    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
     probbaixo = NonlinearProblem(gapsystem!,chutebaixo, [mu, T])
-    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8)
+    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
 
     if abs(solalto.u[3] - solbaixo.u[3]) < 1e-3
         return [solalto.u[1], solalto.u[2], solalto.u[3], solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
@@ -71,24 +70,53 @@ function Tmusolver(mur, Tr)
 end
 
 
-begin
-    mur = range(0, 0.6, length = 500)
-    T = 0.14
+@time begin
+    mur = range(0, 0.6, length = 100)
+    T = 0.05
     solarr = solvermurange(mur, T)
     scatter(mur, solarr[:,3])
 end
 
 
 
-begin
-    mur = range(0,0.6,length = 100)
-    Tr = range(0.01, 0.30, length = 50)
+@time begin
+    mur = range(0,0.6,length = 1000)
+    Tr = range(0.09, 0.30, length = 30)
     allsols = Tmusolver(mur, Tr)
 end
 
 
 begin
-    scatter(mur, [allsols[:, 3, 1], allsols[:, 3, 25], allsols[:, 3, 35]], xlabel = "μ [GeV]", ylabel = "M [GeV]")
+    scatter(mur, [allsols[:, 3, 1], allsols[:, 3, 25], allsols[:, 3, 30]], xlabel = "μ [GeV]", ylabel = "M [GeV]")
 end
 
 
+#Agora para a fase quarkyonica#
+
+function quarkyonic(mu, Msols)
+    diffs = abs.(diff(Msols))
+
+    jump_index = argmax(diffs)
+
+    return mu[jump_index+1], Msols[jump_index+1]
+end
+
+function quarkyonicall(mur, Tr, sols)  
+    mu_quark = zeros(length(Tr))
+    T_quark = zeros(length(Tr))
+    for i in eachindex(Tr)
+        for j in eachindex(mur)
+            if sols[j, 3, i] < mur[j]
+                mu_quark[i] = mur[j]
+                T_quark[i] = Tr[i]
+                break
+            end
+        end
+    end
+    return mu_quark, T_quark
+end
+
+begin
+    muquark, Tquark = quarkyonicall(mur, Tr, allsols)
+    scatter(muquark, Tquark)
+end
