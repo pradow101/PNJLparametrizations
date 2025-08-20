@@ -9,8 +9,8 @@ b3 = -1.75
 T0 = 270MeV
 
 m = 5.5MeV
-L = 587.9MeV
-G = 2.44/L^2
+L = 650MeV
+G = 10.1/2
 Nc = 3
 Nf = 2
 alpha1 = 0.2

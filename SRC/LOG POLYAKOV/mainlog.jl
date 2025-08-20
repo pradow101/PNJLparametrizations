@@ -13,7 +13,7 @@ function gapsystem!(du, u, p)
 
     u[1] = clamp(u[1], 0.0, 1.0)
     u[2] = clamp(u[2], 0.0, 1.0)
-    u[3] = clamp(u[3], 0.0, 1.2)
+    u[3] = max(u[3], 0.0)
 
     println("phi = ", u[1], " phib = ", u[2], " M = ", u[3], " mu = ", p[1], " T = ", p[2])
 
@@ -23,14 +23,14 @@ function gapsystem!(du, u, p)
 end
 
 function gapsolver(mu, T)
-    chutealto = [0.01,0.01,0.4]
+    chutealto = [0.01,0.01,0.34]
     chutebaixo = [0.9,0.9,0.01]
     ad = AutoFiniteDiff()
 
     probalto = NonlinearProblem(gapsystem!,chutealto, [mu, T])
-    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8)
+    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
     probbaixo = NonlinearProblem(gapsystem!,chutebaixo, [mu, T])
-    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8)
+    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
 
     if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
         return [solalto.u[1], solalto.u[2], solalto.u[3]]
@@ -64,12 +64,22 @@ function Tmusolver(mur, Tr)
     return sols
 end
 
+begin
+    gapsolver(0.1,0.2)
+end
+
+
 @time begin
     mur = range(0, 0.6, length = 100)
     T = 0.05
     solarr = solvermurange(mur, T)
     scatter(mur, solarr[:,3])
 end
+
+begin
+    scatter(mur, [solarr[:,1], solarr[:,2]])
+end
+
 
 @time begin
     mur = range(0,0.6,length = 1000)
@@ -138,7 +148,7 @@ sols = npzread("SOLUTIONS.npz")
 
 let
     mur = range(0,0.6,length = 1000)
-    plot(mur, sols[:,15,3], xlabel = "μ [GeV]", ylabel = "M [GeV]")  
+    plot(mur, [sols[:,30,3], sols[:,10,3]])  
 end
 
 
@@ -150,6 +160,8 @@ rightsols[:, i, 3] são as soluções de M para o i-ésimo T
 
 Só para não me merder. μ não está guardado em nenhum lugar das soluções.
 =#
+
+
 function interp(phi, phib, M, mu)
     itpM = interpolate((mu,), M, Gridded(Linear()))
     itpphi = interpolate((mu,), phi, Gridded(Linear()))
