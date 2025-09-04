@@ -70,7 +70,7 @@ end
 
 
 @time begin
-    mur = range(0, 0.6, length = 100)
+    mur = range(0, 0.8, length = 100)
     T = 0.05
     solarr = solvermurange(mur, T)
     scatter(mur, solarr[:,3])
@@ -82,13 +82,13 @@ end
 
 
 @time begin
-    mur = range(0,0.6,length = 1000)
-    Tr = range(0.09, 0.30, length = 30)
+    mur = range(0,0.8,length = 100)
+    Tr = range(0.01, 0.30, length = 30)
     allsols = Tmusolver(mur, Tr)
 end
 
 begin
-    plot(mur, [allsols[:, 3, 13], allsols[:, 3, 14], allsols[:, 3, 15]], xlabel = "μ [GeV]", ylabel = "M [GeV]")
+    scatter(mur, [allsols[:, 10, 1], allsols[:, 10, 2], allsols[:, 10, 3]], xlabel = "μ [GeV]", ylabel = "M [GeV]")
 end
 #Agora para a fase quarkyonica#
 
@@ -105,7 +105,7 @@ function quarkyonicall(mur, Tr, sols)
     T_quark = zeros(length(Tr))
     for i in eachindex(Tr)
         for j in eachindex(mur)
-            if sols[j, 3, i] < mur[j]
+            if sols[j, i, 3] < mur[j]
                 mu_quark[i] = mur[j]
                 T_quark[i] = Tr[i]
                 break
@@ -115,8 +115,15 @@ function quarkyonicall(mur, Tr, sols)
     return mu_quark, T_quark
 end
 
+function interpot(sols)
+
+
+
+
+
+
 let 
-    mur = range(0,0.6,length = 1000)
+    mur = range(0,0.6,length = 100)
     muquark, Tquark = quarkyonicall(mur, Tr, allsols)
     scatter(muquark, Tquark, xlabel = "μ [GeV]", ylabel = "T [GeV]")
 end

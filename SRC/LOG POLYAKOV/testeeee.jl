@@ -3,11 +3,13 @@ begin
     using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve
 end
 
-Ep(p,M) = sqrt(p^2 + M^2)
+begin
+    Ep(p,M) = sqrt(p^2 + M^2)
 
-Z_1(mu, T, M, p) = 1 + exp(-(Ep(p,M) - mu)/T)
+    Z_1(mu, T, M, p) = 1 + exp(-(Ep(p,M) - mu)/T)
 
-Z_2(mu, T, M, p) = 1 + exp(-(Ep(p,M) + mu)/T)
+    Z_2(mu, T, M, p) = 1 + exp(-(Ep(p,M) + mu)/T)
+end
 
 function Imed(mu, T, M)
     quadgk(p -> p^2 * T*log(Z_1(mu, T, M, p) * Z_2(mu, T, M, p)), 0, Inf)[1]
@@ -89,3 +91,4 @@ end
 begin
     scatter(muv, [allsols[:, 1, 15], allsols[:, 1, 50], allsols[:, 1, 75]])
 end
+
