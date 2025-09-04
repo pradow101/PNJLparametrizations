@@ -136,4 +136,7 @@ function dpotphib(phi, phib, mu, T, M)
     return -T*Nf*intmed/π^2 + dUphib(phi, phib, T)
 end
 
-
+function density(phi, phib, mu, T, M, nb)
+    a = ForwardDiff.derivative(mui -> potentiallog(phi, phib, mui, T, M), mu)
+    return a + nb
+end

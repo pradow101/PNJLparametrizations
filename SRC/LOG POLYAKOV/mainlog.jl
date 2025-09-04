@@ -115,13 +115,6 @@ function quarkyonicall(mur, Tr, sols)
     return mu_quark, T_quark
 end
 
-function interpot(sols)
-
-
-
-
-
-
 let 
     mur = range(0,0.6,length = 100)
     muquark, Tquark = quarkyonicall(mur, Tr, allsols)
@@ -147,8 +140,6 @@ begin
         end
     end
 end
-
-
 
 npzwrite("SOLUTIONS.npz", rightsols)
 sols = npzread("SOLUTIONS.npz")
@@ -200,7 +191,29 @@ function interploop(sols, Tr)
     return phi_int, phib_int, M_int
 end
 
-begin
-    Trange = Tr
-    phi_int, phib_int, M_int = interploop(allsols, Trange)
+function densitysolver(T, nb, chute)
+    sist = nlsolve(x -> [density(x[1], x[2], x[3], T, x[4], nb), dphilog(x[1], x[2], x[3], T, x[4]), dphiblog(x[1], x[2], x[3], T, x[4]), dMlog(x[1], x[2], x[3], T, x[4])], chute)
+    return sist.zero
 end
+
+function densityTrange(T, nbrange)
+    sols = zeros(length(nbrange), 4)  # phi, phib, mu, M
+    potvals = zeros(length(nbrange))
+    chute = [0.1, 0.1, 0.4, 4.0]
+    
+    for i in eachindex(nbrange)
+        nb = nbrange[i]
+        sol = densitysolver(T, nb, chute)
+        sols[i, :] = sol
+        potvals[i] = potentiallog(sol[1], sol[2], sol[3], T, sol[4])
+        chute = sol
+    end
+    return sols, potvals
+end
+
+begin
+    solsi, potvalsi = densityTrange(0.02, range(0.000001,0.02,150))
+    plot(solsi[:,3], potvalsi)
+end
+
+
