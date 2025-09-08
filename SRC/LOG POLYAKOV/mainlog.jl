@@ -68,19 +68,6 @@ begin
     gapsolver(0.1,0.2)
 end
 
-
-@time begin
-    mur = range(0, 0.8, length = 100)
-    T = 0.05
-    solarr = solvermurange(mur, T)
-    scatter(mur, solarr[:,3])
-end
-
-begin
-    scatter(mur, [solarr[:,1], solarr[:,2]])
-end
-
-
 @time begin
     mur = range(0,0.8,length = 100)
     Tr = range(0.01, 0.30, length = 30)
@@ -217,3 +204,12 @@ begin
 end
 
 
+function newquarkfind(x,y(x))
+    for i in eachindex(x)
+        if y(x) > x[i]
+            return x[i], y(x[i])
+            break
+        end
+    end
+    return NaN, NaN # Return NaN if no crossing is found
+end
