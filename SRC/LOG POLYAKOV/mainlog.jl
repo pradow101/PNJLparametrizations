@@ -3,7 +3,6 @@ begin
     include("functionslog.jl")
 
     using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve, NPZ
-    plotly()
 end
 
 function gapsystem!(du, u, p)
@@ -68,6 +67,36 @@ begin
     gapsolver(0.1,0.2)
 end
 
+function cepsystem!(du, u, p=0)
+    u[1] = clamp(u[1], 0.0, 1.0)
+    u[2] = clamp(u[2], 0.0, 1.0)
+    u[3] = clamp(u[3], 0.0, 1.0)
+    u[4] = clamp(u[4], 0.0, 1.0)
+    u[5] = clamp(u[5], 0.0, 1.0)
+
+
+    du[1] = dphilog(u[1],u[2],u[3],u[4],u[5])
+    du[2] = dphiblog(u[1],u[2],u[3],u[4],u[5])
+    du[3] = dMlog(u[1],u[2],u[3],u[4],u[5])
+    du[4] = eq1(u[1],u[2],u[3],u[4],u[5])
+    du[5] = eq2(u[1],u[2],u[3],u[4],u[5])
+end
+
+begin
+    CEP = nlsolve(cepsystem!, [0.3,0.1,0.4,0.08,0.25]).zero
+    println("phi = ", CEP[1], " phib = ", CEP[2], " M = ", CEP[3], " mu = ", CEP[4], " T = ", CEP[5])
+end
+
+begin
+    chute = [0.1,0.1,0.4,0.1,0.4]
+
+    ad = AutoFiniteDiff()
+    prob = NonlinearProblem(cepsystem!,chute)
+    sol = solve(prob, NewtonRaphson(; autodiff=ad), abstol=1e-10, maxiters = 1000)
+    println("phi = ", sol.u[1], " phib = ", sol.u[2], " M = ", sol.u[3], " mu = ", sol.u[4], " T = ", sol.u[5])
+end
+
+
 @time begin
     mur = range(0,0.8,length = 100)
     Tr = range(0.01, 0.30, length = 30)
@@ -117,28 +146,8 @@ function maxfind(x,y)
     return NaN, NaN # Return NaN if no maximum is found
 end
 
-begin
-    rightsols = zeros(length(mur), length(Tr), 3)
-    for i in eachindex(Tr)
-        for j in eachindex(mur)
-            rightsols[j,i,1] = allsols[j,1,i]
-            rightsols[j,i,2] = allsols[j,2,i]
-            rightsols[j,i,3] = allsols[j,3,i]
-        end
-    end
-end
-
-npzwrite("SOLUTIONS.npz", rightsols)
-sols = npzread("SOLUTIONS.npz")
-
-let
-    mur = range(0,0.6,length = 1000)
-    plot(mur, [sols[:,30,3], sols[:,10,3]])  
-end
-
-
 #=
-Esse right sols é uma matriz 1000x30x3.
+Esse right sols é uma matriz 100x30x3.
 rightsols[:, i, 1] são as soluções de ϕ para o i-ésimo T
 rightsols[:, i, 2] são as soluções de ϕ̄* para o i-ésimo T
 rightsols[:, i, 3] são as soluções de M para o i-ésimo T
@@ -198,18 +207,23 @@ function densityTrange(T, nbrange)
     return sols, potvals
 end
 
+
 begin
     solsi, potvalsi = densityTrange(0.02, range(0.000001,0.02,150))
     plot(solsi[:,3], potvalsi)
 end
 
+#=
+preciso: interpolar soluções allsols
+ϕ = allsols[:, i, 1]
+ϕ̄* = allsols[:, i, 2]
+M = allsols[:, i, 3]
+onde i é o i-ésimo valor de T
 
-function newquarkfind(x,y(x))
-    for i in eachindex(x)
-        if y(x) > x[i]
-            return x[i], y(x[i])
-            break
-        end
-    end
-    return NaN, NaN # Return NaN if no crossing is found
-end
+derivar as interpolações e  d_interp = 0  para cada T e obter o ponto de transição (!!!)
+
+depois construir a transição de primeira ordem do mesmo jeito pq o sistema pra densidade tá funcionando
+
+construir o diagrama com os pontos que consegui da quarkyonica.
+=#
+

@@ -140,3 +140,23 @@ function density(phi, phib, mu, T, M, nb)
     a = ForwardDiff.derivative(mui -> potentiallog(phi, phib, mui, T, M), mu)
     return a + nb
 end
+
+function dpotmu(phi, phib, mu, T, M)
+    ForwardDiff.derivative(mui -> potentiallog(phi, phib, mui, T, M), mu)
+end
+
+function dpot2M(phi, phib, mu, T, M)
+    ForwardDiff.derivative(Mi -> dpotM(phi, phib, mu, T, Mi), M)
+end
+
+function eq1(phi, phib, mu, T, M)
+    a = dpotM(phi, phib, mu, T, M)
+    b = dpotmu(phi, phib, mu, T, M)
+    return a/b
+end
+
+function eq2(phi, phib, mu, T, M)
+    a = dpot2M(phi, phib, mu, T, M)
+    b = dpotmu(phi, phib, mu, T, M)
+    return a/b
+end
