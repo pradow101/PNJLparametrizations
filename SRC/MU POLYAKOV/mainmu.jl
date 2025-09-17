@@ -82,11 +82,14 @@ end
 
 let 
     nbr = range(1e-10,0.07,length=500)
-    Tr = 0.01
+    Tr = 0.15
     sols, potvals = densityrangesolveru(Tr, nbr)
     scatter(sols[:,3], sols[:,4], markersize=1)
 end
 
 begin
-    
+    CEP = nlsolve(x -> [dMplkmu(x[1],x[2],x[3],x[4],x[5]), dphiplkmu(x[1],x[2],x[3],x[4],x[5]), dphibplkmu(x[1],x[2],x[3],x[4],x[5]), eq1(x[1],x[2],x[3],x[4],x[5]), eq2(x[1],x[2],x[3],x[4],x[5])], [0.15,0.22,0.31,0.15,0.1], autodiff=:forward)
+    println("CEP: ", CEP.zero)
 end
+
+
