@@ -63,24 +63,9 @@ function Tmusolver(mur, Tr)
     return sols
 end
 
-function cepsystem!(du, u, p=0)
-    u[1] = clamp(u[1], 0.0, 1.0)
-    u[2] = clamp(u[2], 0.0, 1.0)
-    u[3] = clamp(u[3], 0.0, 1.0)
-    u[4] = clamp(u[4], 0.0, 1.0)
-    u[5] = clamp(u[5], 0.0, 1.0)
-
-
-    du[1] = dphilog(u[1],u[2],u[3],u[4],u[5])
-    du[2] = dphiblog(u[1],u[2],u[3],u[4],u[5])
-    du[3] = dMlog(u[1],u[2],u[3],u[4],u[5])
-    du[4] = eq1(u[1],u[2],u[3],u[4],u[5])
-    du[5] = eq2(u[1],u[2],u[3],u[4],u[5])
-end
-
 begin
-    CEP = nlsolve(cepsystem!, [0.3,0.1,0.4,0.08,0.25]).zero
-    println("phi = ", CEP[1], " phib = ", CEP[2], " M = ", CEP[3], " mu = ", CEP[4], " T = ", CEP[5])
+    CEP = nlsolve(x -> [dphilog(x[1],x[2],x[3],x[4],x[5]), dphiblog(x[1],x[2],x[3],x[4],x[5]), dMlog(x[1],x[2],x[3],x[4],x[5]), eq1log(x[1],x[2],x[3],x[4],x[5]), eq2log(x[1],x[2],x[3],x[4],x[5])], [0.15,0.22,0.31,0.15,0.1]).zero
+    println("CEP: ", CEP)
 end
 
 begin

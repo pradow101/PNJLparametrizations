@@ -39,5 +39,28 @@ function densityeq(phi, phib, mu, T, M, nb)
     return a + nb
 end
 
+function dmuplkmu(phi,phib,mu,T,M)
+    ForwardDiff.derivative(mux -> potentialmu(phi, phib, mux, T, M), mu)
+end
+
+function dM2plkmu(phi,phib,mu,T,M)
+    ForwardDiff.derivative(Mi -> dMplkmu(phi, phib, mu, T, Mi), M)
+end
+
+function dM3plkmu(phi,phib,mu,T,M)
+    ForwardDiff.derivative(Mi -> dM2plkmu(phi, phib, mu, T, Mi), M)
+end
+
+function eq1(phi, phib, mu, T, M)
+    a = dM2plkmu(phi, phib, mu, T, M)
+    b = dmuplkmu(phi, phib, mu, T, M)
+    return a/b
+end
+
+function eq2(phi, phib, mu, T, M)
+    a = dM3plkmu(phi, phib, mu, T, M)
+    b = dmuplkmu(phi, phib, mu, T, M)
+    return a/b
+end
 
 

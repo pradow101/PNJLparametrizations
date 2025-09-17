@@ -43,100 +43,7 @@ function U(phi, phib, T)
     return T^4 * (term1 + term2)
 end
 
-function dUphi(phi, phib, T)
-    a = -0.5*aT(T)*phib
-    dg = -6*phib + 12*phi^2 - 6*phib^2*phi
-    g  = 1 - 6*phib*phi + 4*(phib^3 + phi^3) - 3*(phib^2 * phi^2)
-    return T^4 * (a + bT(T)*dg/g)
-end
-
-function dUphib(phi, phib, T)
-    a = -0.5*aT(T)*phi
-    dg = -6*phi + 12*phib^2 - 6*phi^2*phib
-    g  = 1 - 6*phib*phi + 4*(phib^3 + phi^3) - 3*(phib^2 * phi^2)
-    return T^4 * (a + bT(T)*dg/g)
-end
-
-function epsminus(mu, T, M, p)
-    exp(-(Ep(p,M) - mu)/T)
-end
-
-function epsplus(mu, T, M, p)
-    exp(-(Ep(p,M) + mu)/T)
-end
-
-function dzminusM(phi, phib, M, mu, T, p)
-    eps = epsminus(mu, T, M, p)
-    denom = 1 + 3*phi*eps + 3*phib*eps^2 + eps^3
-    num = 3*phi*eps + 6*phib*eps^2 + 3*eps^3
-    return -(M/(T*Ep(p,M))) * (num/denom)
-end
-
-function dzplusM(phi, phib, M, mu, T, p)
-    eps = epsplus(mu, T, M, p)
-    denom = 1 + 3*phib*eps + 3*phi*eps^2 + eps^3
-    num = 3*phib*eps + 6*phi*eps^2 + 3*eps^3
-    return -(M/(T*Ep(p,M))) * (num/denom)
-end
-
-function dzminusphi(phi, phib, M, mu, T, p)
-    eps = epsminus(mu, T, M, p)
-    denom = 1 + 3*phi*eps + 3*phib*eps^2 + eps^3
-    return (3*eps)/denom
-end
-
-function dzplusphi(phi, phib, M, mu, T, p)
-    eps = epsplus(mu, T, M, p)
-    denom = 1 + 3*phib*eps + 3*phi*eps^2 + eps^3
-    return (3*eps^2)/denom
-end
-
-function dzminusphib(phi, phib, M, mu, T, p)
-    eps = epsminus(mu, T, M, p)
-    denom = 1 + 3*phi*eps + 3*phib*eps^2 + eps^3
-    return (3*eps^2)/denom
-end
-
-function dzplusphib(phi, phib, M, mu, T, p)
-    eps = epsplus(mu, T, M, p)
-    denom = 1 + 3*phib*eps + 3*phi*eps^2 + eps^3
-    return (3*eps)/denom
-end
-
-function intvacM(M)
-    return quadgk(p -> p^2 * M/Ep(p,M), 0, L)[1]
-end
-
-function intmedM(phi, phib, mu, T, M)
-    return quadgk(p -> p^2 * (dzplusM(phi, phib, M, mu, T, p) + dzminusM(phi, phib, M, mu, T, p)), 0, Inf)[1]
-end
-
-function intmedphi(phi, phib, mu, T, M)
-    return quadgk(p -> p^2 * (dzplusphi(phi, phib, M, mu, T, p) + dzminusphi(phi, phib, M, mu, T, p)), 0, Inf)[1]
-end
-
-function intmedphib(phi, phib, mu, T, M)
-    return quadgk(p -> p^2 * (dzplusphib(phi, phib, M, mu, T, p) + dzminusphib(phi, phib, M, mu, T, p)), 0, Inf)[1]
-end
-
-function dpotM(phi, phib, mu, T, M)
-    intvac = intvacM(M)
-    intmed = intmedM(phi, phib, mu, T, M)
-    a = (M-m)/2*G
-    return a - T*Nf*intmed/π^2 - 3*Nf*intvac/π^2
-end
-
-function dpotphi(phi, phib, mu, T, M)
-    intmed = intmedphi(phi, phib, mu, T, M)
-    return -T*Nf*intmed/π^2 + dUphi(phi, phib, T)
-end
-
-function dpotphib(phi, phib, mu, T, M)
-    intmed = intmedphib(phi, phib, mu, T, M)
-    return -T*Nf*intmed/π^2 + dUphib(phi, phib, T)
-end
-
-function density(phi, phib, mu, T, M, nb)
+function densityeqlog(phi, phib, mu, T, M, nb)
     a = ForwardDiff.derivative(mui -> potentiallog(phi, phib, mui, T, M), mu)
     return a + nb
 end
@@ -146,17 +53,21 @@ function dpotmu(phi, phib, mu, T, M)
 end
 
 function dpot2M(phi, phib, mu, T, M)
-    ForwardDiff.derivative(Mi -> dpotM(phi, phib, mu, T, Mi), M)
+    ForwardDiff.derivative(Mi -> dMlog(phi, phib, mu, T, Mi), M)
 end
 
-function eq1(phi, phib, mu, T, M)
-    a = dpotM(phi, phib, mu, T, M)
+function dpot3M(phi, phib, mu, T, M)
+    ForwardDiff.derivative(Mi -> dpot2M(phi, phib, mu, T, Mi), M)
+end
+
+function eq1log(phi, phib, mu, T, M)
+    a = dpot2M(phi, phib, mu, T, M)
     b = dpotmu(phi, phib, mu, T, M)
     return a/b
 end
 
-function eq2(phi, phib, mu, T, M)
-    a = dpot2M(phi, phib, mu, T, M)
+function eq2log(phi, phib, mu, T, M)
+    a = dpot3M(phi, phib, mu, T, M)
     b = dpotmu(phi, phib, mu, T, M)
     return a/b
 end
