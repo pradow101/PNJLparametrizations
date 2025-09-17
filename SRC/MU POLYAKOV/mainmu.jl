@@ -1,107 +1,92 @@
 begin
-    include("parametersmu.jl")
+    include("parametersmu.jl") 
     include("functionsmu.jl")
+    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve, NPZ
 
-    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations
+    plotly()
 end
 
-
-function gaplogsolver(mu, T, chute)
-    sist = nlsolve(x -> (dphilog(x[1], x[2], mu, T, x[3]), dphiblog(x[1], x[2], mu, T, x[3]), dMlog(x[1], x[2], mu, T, x[3])), chute)
-    return sist.zero
+function gapsystem!(du, u, p)
+    du[1] = dphiplkmu(u[1], u[2], p[1], p[2], u[3])
+    du[2] = dphibplkmu(u[1], u[2], p[1], p[2], u[3])
+    du[3] = dMplkmu(u[1], u[2], p[1], p[2], u[3])
 end
 
-function gapplkvmusolver(mu, T, chute)
-    sist = nlsolve(x -> (dphiplkmu(x[1], x[2], mu, T, x[3]), dphibplkmu(x[1], x[2], mu, T, x[3]), dMplkmu(x[1], x[2], mu, T, x[3])), chute)
-    return sist.zero
-end
+function gapsolver(mu, T)
+    chutealto = [0.01,0.01,0.34]
+    chutebaixo = [0.9,0.9,0.01]
+    ad = AutoFiniteDiff()
 
+    probalto = NonlinearProblem(gapsystem!,chutealto, [mu, T])
+    solalto = solve(probalto, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
+    probbaixo = NonlinearProblem(gapsystem!,chutebaixo, [mu, T])
+    solbaixo = solve(probbaixo, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
 
-
-begin
-    function Trangelogsolver(mu, T_vals)
-        philogvals = zeros(length(T_vals))
-        phiblogvals = zeros(length(T_vals))
-        Mlogvals = zeros(length(T_vals))
-        chute = [0.01,0.01,1]
-        for i in 1:length(T_vals)
-            T = T_vals[i]
-            solution = gaplogsolver(mu, T, chute)
-            philogvals[i] = solution[1]
-            phiblogvals[i] = solution[2]
-            Mlogvals[i] = solution[3]
-            chute = solution
-        end
-        return philogvals, phiblogvals, Mlogvals, T_vals
+    if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
+        return [solalto.u[1], solalto.u[2], solalto.u[3]]
+    elseif potentialmu(solbaixo.u[1], solbaixo.u[2], mu, T, solbaixo.u[3]) < potentialmu(solalto.u[1], solalto.u[2], mu, T, solalto.u[3])
+        return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
     end
+    return [solalto.u[1], solalto.u[2], solalto.u[3]]
+end
 
-    function Trangeplkvmusolver(mu, T_vals)
-        philkmuvals = zeros(length(T_vals))
-        phibplkmuvals = zeros(length(T_vals))
-        Mplkmuvals = zeros(length(T_vals))
-        chute = [0.01,0.01,0.4]
-        for i in eachindex(T_vals)
-            T = T_vals[i]
-            solution = gapplkvmusolver(mu, T, chute)
-            philkmuvals[i] = solution[1]
-            phibplkmuvals[i] = solution[2]
-            Mplkmuvals[i] = solution[3]
-            chute = solution
-        end
-        return philkmuvals, phibplkmuvals, Mplkmuvals, T_vals
+function murangesolver(mu, T)
+    sols = zeros(length(mu), 3)
+    Threads.@threads for i in eachindex(mu)
+        sols[i, :] = gapsolver(mu[i], T)
     end
+    return sols
 end
 
-
-begin
-    function murangelog(T, mu_vals)
-        μphilogvals = zeros(length(mu_vals))
-        μphiblogvals = zeros(length(mu_vals))
-        μMlogvals = zeros(length(mu_vals))
-        chute = [0.01,0.01,1]
-        Threads.@threads for i in eachindex(mu_vals)
-            mu = mu_vals[i]
-            solution = gaplogsolver(mu, T, chute)
-            μphilogvals[i] = solution[1]
-            μphiblogvals[i] = solution[2]
-            μMlogvals[i] = solution[3]
-            chute = solution
-        end
-        return μphilogvals, μphiblogvals, μMlogvals, mu_vals
+function Trangesolver(mu, T)
+    sols = zeros(length(T), 3)
+    Threads.@threads for i in eachindex(T)
+        sols[i, :] = murangesolver(mu, T[i])
     end
+    return sols
+end
 
-    function murangemuplkv(T, mu_vals)
-        plkvphivals = zeros(length(mu_vals))
-        plkvphibvals = zeros(length(mu_vals))
-        plkvMvals = zeros(length(mu_vals))
-        chute = [0.01,0.01,1]
-        Threads.@threads for i in eachindex(mu_vals)
-            mu = mu_vals[i]
-            solution = gapplkvmusolver(mu, T, chute)
-            plkvphivals[i] = solution[1]
-            plkvphibvals[i] = solution[2]
-            plkvMvals[i] = solution[3]
-            chute = solution
-        end
-        return plkvphivals, plkvphibvals, plkvMvals, mu_vals
+let
+    mu = range(0.0,0.5, length = 100)
+    T = 0.12
+    sols = murangesolver(mu, T)
+    plot(mu, sols[:,1])
+end
+
+function densitysystemu!(du, u, p)
+    du[1] = densityeq(u[1], u[2], u[3], p[1], u[4], p[2])
+    du[2] = dphiplkmu(u[1], u[2], u[3], p[1], u[4])
+    du[3] = dphibplkmu(u[1], u[2], u[3], p[1], u[4])
+    du[4] = dMplkmu(u[1], u[2], u[3], p[1], u[4])
+end
+
+function densitysolveru(T, nb)
+    chute = [0.1,0.1,0.4,0.4]
+    ad = AutoFiniteDiff()
+
+    prob = NonlinearProblem(densitysystemu!,chute, [T, nb])
+    sol = solve(prob, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
+
+    return [sol.u[1], sol.u[2], sol.u[3], sol.u[4]]
+end
+
+function densityrangesolveru(T, nb)
+    sols = zeros(length(nb), 4)
+    potvals = zeros(length(nb))
+    for i in eachindex(nb)
+        sols[i, :] = densitysolveru(T, nb[i])
+        potvals[i] = potentialmu(sols[i, 1], sols[i, 2], sols[i, 3], T, sols[i, 4])
     end
+    return sols, potvals
+end
+
+let 
+    nbr = range(1e-10,0.07,length=500)
+    Tr = 0.01
+    sols, potvals = densityrangesolveru(Tr, nbr)
+    scatter(sols[:,3], sols[:,4], markersize=1)
 end
 
 begin
-    T = 0.1
-    mu_vals = range(0,0.6, length=10)
-    aphi, bphib, cM, dmu = murangelog(T, mu_vals)
-
-    plot(dmu, cM)
-end
-
-begin
-    plot(dmu, cM)
-    plot!(dmu, aphi)
-end
-
-
-begin
-    plkvphi, plkvphib, plkvM, muv = murangemuplkv(T, mu_vals)
-    plot(muv, plkvM)
+    
 end
