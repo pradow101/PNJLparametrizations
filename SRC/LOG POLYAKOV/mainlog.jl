@@ -63,10 +63,6 @@ function Tmusolver(mur, Tr)
     return sols
 end
 
-begin
-    gapsolver(0.1,0.2)
-end
-
 function cepsystem!(du, u, p=0)
     u[1] = clamp(u[1], 0.0, 1.0)
     u[2] = clamp(u[2], 0.0, 1.0)
@@ -187,6 +183,25 @@ function interploop(sols, Tr)
     return phi_int, phib_int, M_int
 end
 
+
+function densitysystem!(du,u,p)
+    du[1] = density(u[1],u[2],u[3],p[1],u[4],p[2])
+    du[2] = dphilog(u[1],u[2],u[3],p[1],u[4])
+    du[3] = dphiblog(u[1],u[2],u[3],p[1],u[4])
+    du[4] = dMlog(u[1],u[2],u[3],p[1],u[4])
+end
+
+function densitysolver1(T, nb)
+    chute = [0.1,0.1,0.4,0.4]
+    ad = AutoFiniteDiff()
+
+    prob = NonlinearProblem(densitysystem!,chute, [T, nb])
+    sol = solve(prob, TrustRegion(; autodiff=ad), abstol=1e-8, maxiters = 100)
+    return sol.u
+end
+
+
+
 function densitysolver(T, nb, chute)
     sist = nlsolve(x -> [density(x[1], x[2], x[3], T, x[4], nb), dphilog(x[1], x[2], x[3], T, x[4]), dphiblog(x[1], x[2], x[3], T, x[4]), dMlog(x[1], x[2], x[3], T, x[4])], chute)
     return sist.zero
@@ -195,23 +210,24 @@ end
 function densityTrange(T, nbrange)
     sols = zeros(length(nbrange), 4)  # phi, phib, mu, M
     potvals = zeros(length(nbrange))
-    chute = [0.1, 0.1, 0.4, 4.0]
-    
+
     for i in eachindex(nbrange)
         nb = nbrange[i]
-        sol = densitysolver(T, nb, chute)
-        sols[i, :] = sol
+        sol = densitysolver1(T, nb)
+        sols[i, :] = Float64.(sol)   # ensure numbers, not Duals/Any
         potvals[i] = potentiallog(sol[1], sol[2], sol[3], T, sol[4])
-        chute = sol
     end
     return sols, potvals
 end
 
 
+
 begin
-    solsi, potvalsi = densityTrange(0.02, range(0.000001,0.02,150))
-    plot(solsi[:,3], potvalsi)
+    solsi, potvalsi = densityTrange(0.009, range(0.00001,0.01,150))
+    println(solsi[:,3], potvalsi)
 end
+
+println(size(potvalsi))
 
 #=
 preciso: interpolar soluções allsols
@@ -227,3 +243,72 @@ depois construir a transição de primeira ordem do mesmo jeito pq o sistema pra
 construir o diagrama com os pontos que consegui da quarkyonica.
 =#
 
+function interpot(pvals, muvals)
+    firstcurvex = []
+    firstcurvey = []
+    secondcurvex = []
+    secondcurvey = []
+    for i in 2:length(muvals)
+        if muvals[i] < muvals[i-1]
+            break
+        end
+        append!(firstcurvey, pvals[i])
+        append!(firstcurvex, muvals[i])
+    end
+    for i in length(muvals)-1:-1:2
+        if muvals[i] < muvals[i-1]
+            break
+        end
+        append!(secondcurvey, pvals[i])
+        append!(secondcurvex, muvals[i])
+    end
+    return firstcurvex, firstcurvey, secondcurvex, secondcurvey
+end
+
+function fofinder(T, chuteinit)
+    sols, potvals = densityTrange(T, range(0.000001,0.02,150))
+    firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(potvals, sols[:,3])
+
+    x1 = Vector{Float64}(firstcurvex)
+    y1 = Vector{Float64}(firstcurvey)
+    x2 = reverse(Vector{Float64}(secondcurvex))
+    y2 = reverse(Vector{Float64}(secondcurvey))
+    
+    interp1 = DataInterpolations.LinearInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
+    interp2 = DataInterpolations.QuadraticInterpolation(y2, x2; extrapolation=ExtrapolationType.Linear)
+
+    # return interp1, interp2
+    diferenca(mu) = interp1(mu) - interp2(mu)
+    
+    mucritico = nlsolve(x -> [diferenca(x[1])], [chuteinit], method=:newton)
+    return mucritico.zero[1], interp2(mucritico.zero[1]), interp1, interp2, x2, y2, x1, y1
+end
+
+# begin
+#     spin1x = []
+#     spin1y = []
+#     spin2x = []
+#     spin2y = []
+#     Ti = range(0.01, 0.065, length=100)
+#     for i in 1:length(Ti)
+#         T = Ti[i]
+#         _, muvalsspin, _, _, _, pvalsspin = Trange_density(T)
+#         x1spin, y1spin, x2spin, y2spin = interpot(pvalsspin, muvalsspin)
+#         append!(spin1x, x1spin[end])
+#         append!(spin1y, Ti[i])
+#         append!(spin2x, x2spin[end])
+#         append!(spin2y, Ti[i])
+#     end
+    
+#     plot(spin1x, spin1y)
+#     plot!(spin2x, spin2y)
+# end
+
+begin
+    Tcrits = range(0.02, 0.06, length=30)
+    for T in eachindex(Tcrits)
+        mucrit, potcrit, _, _, _, _, _, _ = fofinder(Tcrits[T], 0.02)
+    end
+    plot(Tcrits, mucrit)
+    scatter!(muquark, Tquark, xlabel = "μ [GeV]", ylabel = "T [GeV]")
+end

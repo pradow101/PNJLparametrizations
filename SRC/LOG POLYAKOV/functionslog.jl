@@ -9,12 +9,12 @@ Ep(p,M) = sqrt(p^2 + M^2)
 
 Gc(phi, phib) = G*(1 - alpha1*(phi*phib) - alpha2*(phi^3 + phib^3))
 
-zminus(phi,phib,M,mu,T,p) = 1 + 3*phi*exp(-(Ep(p,M) - mu)/T) + 3*phib*exp(-2*(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T)
+zminus(phi,phib,M,mu,T,p) = 1 + 3*phi*exp(-(Ep(p,M) - mu)/T) + 3*phib*exp(-2*(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T) + 1e-9
 
-zplus(phi,phib,M,mu,T,p) = 1 + 3*phib*exp(-(Ep(p,M) + mu)/T) + 3*phi*exp(-2*(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T)
+zplus(phi,phib,M,mu,T,p) = 1 + 3*phib*exp(-(Ep(p,M) + mu)/T) + 3*phi*exp(-2*(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T) + 1e-9
 
 function Imed(phi,phib,mu,T,M)
-    quadgk(p -> p^2 * log(zminus(phi,phib,M,mu,T,p)*zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
+    quadgk(p -> p^2 * (log(zminus(phi,phib,M,mu,T,p)) + log(zplus(phi,phib,M,mu,T,p))), 0, Inf)[1]
 end
 
 function Ivac(M)
