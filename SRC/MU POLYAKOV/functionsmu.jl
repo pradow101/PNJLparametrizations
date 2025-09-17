@@ -10,6 +10,8 @@ zplus(phi,phib,M,mu,T,p) = log(1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(E
 
 potplkvmu(phi, phib, mu, T) = (a0*T^4 + a1*mu^4 + a2*mu^2*T^2)*(phi*phib) + a3*T0^4*log(1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2)
 
+Gmod(phi) = G0*(1-phi^2)
+
 function Imed(phi,phib,M,mu,T)
     quadgk(p -> p^2 * (zminus(phi,phib,M,mu,T,p) + zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
 end
@@ -19,7 +21,7 @@ function Ivac(M)
 end
     
 function potentialmu(phi, phib, mu, T, M)
-    (M-m)^2/4G - T*Nf*Imed(phi,phib,M,mu,T)/π^2 - 3*Nf*Ivac(M)/π^2 + potplkvmu(phi,phib,mu,T)
+    ((M-m)^2/(4*Gmod(phi))) - T*Nf*Imed(phi,phib,M,mu,T)/π^2 - 3*Nf*Ivac(M)/π^2 + potplkvmu(phi,phib,mu,T)
 end
 
 function dphiplkmu(phi,phib,mu,T,M)

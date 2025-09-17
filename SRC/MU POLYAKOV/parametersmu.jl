@@ -5,7 +5,7 @@ Nc = 3.0
 Nf = 2.0
 m = 5.6MeV
 lamb = 587.9MeV
-G = 2.44/lamb^2
+G0 = 2.44/lamb^2
 T0 = 270.0MeV
 
 a0 = -1.85

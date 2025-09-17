@@ -81,10 +81,10 @@ function densityrangesolveru(T, nb)
 end
 
 let 
-    nbr = range(1e-10,0.07,length=500)
-    Tr = 0.03
+    nbr = range(1e-10,0.1,length=500)
+    Tr = 0.06
     sols, potvals = densityrangesolveru(Tr, nbr)
-    scatter([sols[:,3]], potvals, markersize=1)
+    plot([sols[:,3]], potvals, markersize=1)
 end
 
 begin
@@ -103,11 +103,13 @@ end
 
 begin 
     nbr = range(1e-10,0.07,length=200)
-    Tr = range(0.01,0.2,length=50)
+    Tr = range(0.01,0.17,length=50)
     sols, potvals = Trange_density(Tr, nbr)
 end
 
-
+begin
+    plot(sols[47,:,3], potvals[47,:])
+end
 
 function interpot(pvals, muvals)
     firstcurvex = []
@@ -131,21 +133,32 @@ function interpot(pvals, muvals)
     return firstcurvex, firstcurvey, secondcurvex, secondcurvey
 end
 
-function fofinder(T, nb, chuteinit)
-    sols, potvals = Trange_density(T, nb)
-    firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(potvals[i,:], sols[i, :, 3])
+function fofinder(T, nb)
+    sols = zeros(length(T), 2)
 
-    x1 = Vector{Float64}(firstcurvex)
-    y1 = Vector{Float64}(firstcurvey)
-    x2 = reverse(Vector{Float64}(secondcurvex))
-    y2 = reverse(Vector{Float64}(secondcurvey))
-    
-    interp1 = DataInterpolations.LinearInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
-    interp2 = DataInterpolations.QuadraticInterpolation(y2, x2; extrapolation=ExtrapolationType.Linear)
+    for i in eachindex(T)
+        sols, potvals = densityrangesolveru(T[i], nb)
+        firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(potvals[i,:], sols[i, :, 3])
 
-    diferenca(mu) = interp1(mu) - interp2(mu)
-    
-    mucritico = nlsolve(x -> [diferenca(x[1])], [chuteinit], method=:newton)
-    return mucritico.zero[1], interp2(mucritico.zero[1]), interp1, interp2, x2, y2, x1, y1
+        x1 = Vector{Float64}(firstcurvex)
+        y1 = Vector{Float64}(firstcurvency)
+        x2 = reverse(Vector{Float64}(secondcurvex))
+        y2 = reverse(Vector{Float64}(secondcurvey))
+
+        interp1 = DataInterpolations.LinearInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
+        interp2 = DataInterpolations.QuadraticInterpolation(y2, x2; extrapolation=ExtrapolationType.Linear)
+
+        diferenca(mu) = interp1(mu) - interp2(mu)
+        mucritico = nlsolve(x -> [diferenca(x[1])], [0.2], method=:newton)
+
+        sols[i, :] = [T[i], mucritico.zero[1]]
+    end
+    return sols
 end
 
+
+begin
+    Tr = range(0.005,0.15,length=30)
+    nbr = range(1e-10,0.07,length=300)
+    sols = fofinder(Tr, nbr)
+end
