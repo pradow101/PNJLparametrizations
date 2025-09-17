@@ -82,9 +82,9 @@ end
 
 let 
     nbr = range(1e-10,0.07,length=500)
-    Tr = 0.15
+    Tr = 0.03
     sols, potvals = densityrangesolveru(Tr, nbr)
-    scatter(sols[:,3], sols[:,4], markersize=1)
+    scatter([sols[:,3]], potvals, markersize=1)
 end
 
 begin
@@ -92,4 +92,60 @@ begin
     println("CEP: ", CEP.zero)
 end
 
+function Trange_density(T, nb)
+    sols = zeros(length(T), length(nb), 4)
+    potvals = zeros(length(T), length(nb))
+    Threads.@threads for i in eachindex(T)
+        sols[i, :, :], potvals[i, :] = densityrangesolveru(T[i], nb)
+    end
+    return sols, potvals
+end
+
+begin 
+    nbr = range(1e-10,0.07,length=200)
+    Tr = range(0.01,0.2,length=50)
+    sols, potvals = Trange_density(Tr, nbr)
+end
+
+
+
+function interpot(pvals, muvals)
+    firstcurvex = []
+    firstcurvey = []
+    secondcurvex = []
+    secondcurvey = []
+    for i in 2:length(muvals)
+        if muvals[i] < muvals[i-1]
+            break
+        end
+        append!(firstcurvey, pvals[i])
+        append!(firstcurvex, muvals[i])
+    end
+    for i in length(muvals)-1:-1:2
+        if muvals[i] < muvals[i-1]
+            break
+        end
+        append!(secondcurvey, pvals[i])
+        append!(secondcurvex, muvals[i])
+    end
+    return firstcurvex, firstcurvey, secondcurvex, secondcurvey
+end
+
+function fofinder(T, nb, chuteinit)
+    sols, potvals = Trange_density(T, nb)
+    firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(potvals[i,:], sols[i, :, 3])
+
+    x1 = Vector{Float64}(firstcurvex)
+    y1 = Vector{Float64}(firstcurvey)
+    x2 = reverse(Vector{Float64}(secondcurvex))
+    y2 = reverse(Vector{Float64}(secondcurvey))
+    
+    interp1 = DataInterpolations.LinearInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
+    interp2 = DataInterpolations.QuadraticInterpolation(y2, x2; extrapolation=ExtrapolationType.Linear)
+
+    diferenca(mu) = interp1(mu) - interp2(mu)
+    
+    mucritico = nlsolve(x -> [diferenca(x[1])], [chuteinit], method=:newton)
+    return mucritico.zero[1], interp2(mucritico.zero[1]), interp1, interp2, x2, y2, x1, y1
+end
 
