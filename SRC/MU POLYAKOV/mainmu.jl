@@ -33,24 +33,18 @@ end
 function murangesolver(mu, T)
     sols = zeros(length(mu), 3)
     Threads.@threads for i in eachindex(mu)
-        sols[i, :] = gapsolver(mu[i], T)
+        sols[i, :] = gapsolver(mu[i], T)   # T is scalar here
     end
     return sols
 end
+
 
 function Trangesolver(mu, T)
-    sols = zeros(length(T), 3)
+    sols = zeros(length(T), length(mu), 3)
     Threads.@threads for i in eachindex(T)
-        sols[i, :] = murangesolver(mu, T[i])
+        sols[i, :, :] = murangesolver(mu, T[i])   # pass scalar T[i]
     end
     return sols
-end
-
-let
-    mu = range(0.0,0.5, length = 100)
-    T = 0.12
-    sols = murangesolver(mu, T)
-    plot(mu, sols[:,1])
 end
 
 function densitysystemu!(du, u, p)
@@ -80,18 +74,6 @@ function densityrangesolveru(T, nb)
     return sols, potvals
 end
 
-let 
-    nbr = range(1e-10,0.1,length=500)
-    Tr = 0.06
-    sols, potvals = densityrangesolveru(Tr, nbr)
-    plot([sols[:,3]], potvals, markersize=1)
-end
-
-begin
-    CEP = nlsolve(x -> [dMplkmu(x[1],x[2],x[3],x[4],x[5]), dphiplkmu(x[1],x[2],x[3],x[4],x[5]), dphibplkmu(x[1],x[2],x[3],x[4],x[5]), eq1(x[1],x[2],x[3],x[4],x[5]), eq2(x[1],x[2],x[3],x[4],x[5])], [0.15,0.22,0.31,0.15,0.1], autodiff=:forward)
-    println("CEP: ", CEP.zero)
-end
-
 function Trange_density(T, nb)
     sols = zeros(length(T), length(nb), 4)
     potvals = zeros(length(T), length(nb))
@@ -99,16 +81,6 @@ function Trange_density(T, nb)
         sols[i, :, :], potvals[i, :] = densityrangesolveru(T[i], nb)
     end
     return sols, potvals
-end
-
-begin 
-    nbr = range(1e-10,0.07,length=200)
-    Tr = range(0.01,0.17,length=50)
-    sols, potvals = Trange_density(Tr, nbr)
-end
-
-begin
-    plot(sols[47,:,3], potvals[47,:])
 end
 
 function interpot(pvals, muvals)
@@ -133,15 +105,17 @@ function interpot(pvals, muvals)
     return firstcurvex, firstcurvey, secondcurvex, secondcurvey
 end
 
-function fofinder(T, nb)
-    sols = zeros(length(T), 2)
 
-    for i in eachindex(T)
-        sols, potvals = densityrangesolveru(T[i], nb)
-        firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(potvals[i,:], sols[i, :, 3])
+begin
+    T = range(0.005, 0.145, length=50)
+    sols = zeros(50, 2)
+    potsols = CSV.read("potvals.csv", DataFrame)
+    musols = CSV.read("mudensity.csv", DataFrame)
+    for i in 1:50
+        firstcurvex, firstcurvey, secondcurvex, secondcurvey = interpot(collect(potsols[i, :]), collect(musols[i, :]))
 
         x1 = Vector{Float64}(firstcurvex)
-        y1 = Vector{Float64}(firstcurvency)
+        y1 = Vector{Float64}(firstcurvey)
         x2 = reverse(Vector{Float64}(secondcurvex))
         y2 = reverse(Vector{Float64}(secondcurvey))
 
@@ -153,12 +127,46 @@ function fofinder(T, nb)
 
         sols[i, :] = [T[i], mucritico.zero[1]]
     end
-    return sols
+    plot(sols[:,2], sols[:,1])
+    scatter!([CEP.zero[3]], [CEP.zero[4]])
 end
 
+# begin
+#     murng = range(0.0, 0.5, length = 100)
+#     Trng = range(0.005, 0.3, length = 70)
+#     sols = Trangesolver(murng, Trng)
+#     dfphi = DataFrame(sols[:,:,1], :auto)
+#     dfphiB = DataFrame(sols[:,:,2], :auto)
+#     dfM = DataFrame(sols[:,:,3], :auto)
+#     CSV.write("phisolutions.csv", dfphi)
+#     CSV.write("phibsolutions.csv", dfphiB)
+#     CSV.write("Msolutions.csv", dfM)
+# end
+
+begin
+    CEP = nlsolve(x -> [dMplkmu(x[1],x[2],x[3],x[4],x[5]), dphiplkmu(x[1],x[2],x[3],x[4],x[5]), dphibplkmu(x[1],x[2],x[3],x[4],x[5]), eq1(x[1],x[2],x[3],x[4],x[5]), eq2(x[1],x[2],x[3],x[4],x[5])], [0.15,0.22,0.31,0.15,0.1], autodiff=:forward)
+    println("CEP: ", CEP.zero)
+end
+
+begin 
+    nbr = range(1e-10,0.07,length=200)
+    Tr = range(0.01,0.17,length=50)
+    sols, potvals = Trange_density(Tr, nbr)
+    phidensity = DataFrame(sols[:,:,1], :auto)
+    phibdensity = DataFrame(sols[:,:,2], :auto)
+    mudensity = DataFrame(sols[:,:,3], :auto)
+    Mdensity = DataFrame(sols[:,:,4], :auto)
+    potvalsdf = DataFrame(potvals[:,:], :auto)
+    CSV.write("phidensity.csv", phidensity)
+    CSV.write("phibdensity.csv", phibdensity)
+    CSV.write("mudensity.csv", mudensity)
+    CSV.write("Mdensity.csv", Mdensity)
+    CSV.write("potvals.csv", potvalsdf)
+end
 
 begin
     Tr = range(0.005,0.15,length=30)
     nbr = range(1e-10,0.07,length=300)
     sols = fofinder(Tr, nbr)
 end
+
