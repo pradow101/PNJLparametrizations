@@ -10,7 +10,7 @@ zplus(phi,phib,M,mu,T,p) = log(1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(E
 
 potplkvmu(phi, phib, mu, T) = (a0*T^4 + a1*mu^4 + a2*mu^2*T^2)*(phi*phib) + a3*T0^4*log(1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2)
 
-Gmod(phi, phib) = G0*(1-phi*phib)
+Gmod(phi, phib) = G0#*(1-phi*phib)
 
 function Imed(phi,phib,M,mu,T)
     quadgk(p -> p^2 * (zminus(phi,phib,M,mu,T,p) + zplus(phi,phib,M,mu,T,p)), 0, Inf)[1]
@@ -65,4 +65,67 @@ function eq2(phi, phib, mu, T, M)
     return a/b
 end
 
+################## DEFINING ANALYTICAL FUNCTIONS
+function Fminus(phi, phib, mu, T, M, p)
+    a = phi*exp(2*(Ep(p,M)-mu)/T) + 2*phib*exp((Ep(p,M)-mu)/T) + 1
+    b = 3*phi*exp(2*(Ep(p,M)-mu)/T) + 3*phib*exp((Ep(p,M)-mu)/T) + exp(3*(Ep(p,M)-mu)/T) + 1
+    return a/b
+end
 
+function Fplus(phi, phib, mu, T, M, p)
+    a = phib*exp(2*(Ep(p,M)+mu)/T) + 2*phi*exp((Ep(p,M)+mu)/T) + 1
+    b = 3*phib*exp(2*(Ep(p,M)+mu)/T) + 3*phi*exp((Ep(p,M)+mu)/T) + exp(3*(Ep(p,M)+mu)/T) + 1
+    return a/b
+end
+
+function Ivaccondensate(M)
+    quadgk(p -> p^2 * (M/Ep(p,M)), 0, lamb)[1]
+end
+
+function Imedcondensate(phi, phib, M, mu, T)
+    quadgk(p -> p^2 * (M/Ep(p,M)) * (Fminus(phi, phib, mu, T, M, p) + Fplus(phi, phib, mu, T, M, p)), 0, Inf)[1]
+end
+
+function condensate(phi, phib, mu, T, M)
+    γ/(2π^2) * (Imedcondensate(phi, phib, M, mu, T) - Ivaccondensate(M))
+end 
+
+function dU_dphi(phi, phib, mu, T)
+    a = 6*phib - 12*phi^2 + 6*phi*phib^2
+    b = 1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2
+    return (a0*T^4 + a1*mu^4 + a2*mu^2*T^2)*phib + a3*T0^4*(a/b)
+end
+
+function dzplus_dphi(phi, phib, mu, T, M, p)
+    a = 3*exp(-2(Ep(p,M) + mu)/T)
+    b = 1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T)
+    return a/b
+end
+
+function dzminus_dphi(phi, phib, mu, T, M, p)
+    a = 3*exp(-(Ep(p,M) - mu)/T)
+    b = 1 + 3*(phi + phib*exp(-(Ep(p,M) - mu)/T))*exp(-(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T)
+    return a/b
+end
+
+function dU_dphib(phi, phib, mu, T)
+    a = 6*phi - 12*phib^2 + 6*phib*phi^2
+    b = 1 - 6*phi*phib + 4*(phi^3 + phib^3) - 3*(phi*phib)^2
+    return (a0*T^4 + a1*mu^4 + a2*mu^2*T^2)*phi + a3*T0^4*(a/b)
+end
+
+function dzplus_dphib(phi, phib, mu, T, M, p)
+    a = 3*exp(-(Ep(p,M) + mu)/T)
+    b = 1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T)
+    return a/b
+end
+
+function dzminus_dphib(phi, phib, mu, T, M, p)
+    a = 3*exp(-2*(Ep(p,M) - mu)/T)
+    b = 1 + 3*(phi + phib*exp(-(Ep(p,M) - mu)/T))*exp(-(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T)
+    return a/b
+end
+
+function Imed_dphi(phi, phib, M, mu, T)
+    quadgk(p -> p^2 * (dzminus_dphi(phi, phib, mu, T, M, p) + dzplus_dphi(phi, phib, mu, T, M, p)), 0, Inf)[1]
+end

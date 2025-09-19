@@ -7,6 +7,10 @@ begin
 end
 
 function gapsystem!(du, u, p)
+    u[1] = clamp(u[1], 0.0, 1.0)
+    u[2] = clamp(u[2], 0.0, 1.0)
+    u[3] = max(u[3], 0.0)
+
     du[1] = dphiplkmu(u[1], u[2], p[1], p[2], u[3])
     du[2] = dphibplkmu(u[1], u[2], p[1], p[2], u[3])
     du[3] = dMplkmu(u[1], u[2], p[1], p[2], u[3])
@@ -38,6 +42,13 @@ function murangesolver(mu, T)
     return sols
 end
 
+function gap_solverforT(mu, T)
+    sols = zeros(length(T), 3)
+    Threads.@threads for i in eachindex(T)
+        sols[i, :] = gapsolver(mu, T[i])   # mu is scalar here
+    end
+    return sols
+end
 
 function Trangesolver(mu, T)
     sols = zeros(length(T), length(mu), 3)
@@ -148,20 +159,31 @@ begin
     println("CEP: ", CEP.zero)
 end
 
+let 
+    Tr = range(0.01,0.3, length=100)
+    mu = 0.30
+    sols = gap_solverforT(mu, Tr)
+    plot(Tr, sols[:,1])
+end
+
 begin 
     nbr = range(1e-10,0.07,length=200)
     Tr = range(0.01,0.17,length=50)
     sols, potvals = Trange_density(Tr, nbr)
-    phidensity = DataFrame(sols[:,:,1], :auto)
-    phibdensity = DataFrame(sols[:,:,2], :auto)
-    mudensity = DataFrame(sols[:,:,3], :auto)
-    Mdensity = DataFrame(sols[:,:,4], :auto)
-    potvalsdf = DataFrame(potvals[:,:], :auto)
-    CSV.write("phidensity.csv", phidensity)
-    CSV.write("phibdensity.csv", phibdensity)
-    CSV.write("mudensity.csv", mudensity)
-    CSV.write("Mdensity.csv", Mdensity)
-    CSV.write("potvals.csv", potvalsdf)
+    # phidensity = DataFrame(sols[:,:,1], :auto)
+    # phibdensity = DataFrame(sols[:,:,2], :auto)
+    # mudensity = DataFrame(sols[:,:,3], :auto)
+    # Mdensity = DataFrame(sols[:,:,4], :auto)
+    # potvalsdf = DataFrame(potvals[:,:], :auto)
+    # CSV.write("phidensity.csv", phidensity)
+    # CSV.write("phibdensity.csv", phibdensity)
+    # CSV.write("mudensity.csv", mudensity)
+    # CSV.write("Mdensity.csv", Mdensity)
+    # CSV.write("potvals.csv", potvalsdf)
+end
+
+begin
+    plot(sols[5,:,3], potvals[5,:])
 end
 
 begin
