@@ -67,14 +67,14 @@ end
 
 ################## DEFINING ANALYTICAL FUNCTIONS
 function Fminus(phi, phib, mu, T, M, p)
-    a = phi*exp(2*(Ep(p,M)-mu)/T) + 2*phib*exp((Ep(p,M)-mu)/T) + 1
-    b = 3*phi*exp(2*(Ep(p,M)-mu)/T) + 3*phib*exp((Ep(p,M)-mu)/T) + exp(3*(Ep(p,M)-mu)/T) + 1
+    a = phi*exp(-(Ep(p,M)-mu)/T) + 2*phib*exp(-2*(Ep(p,M)-mu)/T) + exp(-3*(Ep(p,M)-mu)/T)
+    b = 3*phi*exp(-(Ep(p,M)-mu)/T) + 3*phib*exp(-2*(Ep(p,M)-mu)/T) + exp(-3*(Ep(p,M)-mu)/T) + 1
     return a/b
 end
 
 function Fplus(phi, phib, mu, T, M, p)
-    a = phib*exp(2*(Ep(p,M)+mu)/T) + 2*phi*exp((Ep(p,M)+mu)/T) + 1
-    b = 3*phib*exp(2*(Ep(p,M)+mu)/T) + 3*phi*exp((Ep(p,M)+mu)/T) + exp(3*(Ep(p,M)+mu)/T) + 1
+    a = phib*exp(-(Ep(p,M)+mu)/T) + 2*phi*exp(-2*(Ep(p,M)+mu)/T) + exp(-3*(Ep(p,M)+mu)/T)
+    b = 3*phib*exp(-(Ep(p,M)+mu)/T) + 3*phi*exp(-2*(Ep(p,M)+mu)/T) + exp(-3*(Ep(p,M)+mu)/T) + 1
     return a/b
 end
 
@@ -86,8 +86,8 @@ function Imedcondensate(phi, phib, M, mu, T)
     quadgk(p -> p^2 * (M/Ep(p,M)) * (Fminus(phi, phib, mu, T, M, p) + Fplus(phi, phib, mu, T, M, p)), 0, Inf)[1]
 end
 
-function condensate(phi, phib, mu, T, M)
-    γ/(2π^2) * (Imedcondensate(phi, phib, M, mu, T) - Ivaccondensate(M))
+function DMPOT(phi, phib, mu, T, M)
+    γ/(2*π^2)*(Imedcondensate(phi, phib, M, mu, T) - Ivaccondensate(M))
 end 
 
 function dU_dphi(phi, phib, mu, T)
@@ -126,6 +126,44 @@ function dzminus_dphib(phi, phib, mu, T, M, p)
     return a/b
 end
 
-function Imed_dphi(phi, phib, M, mu, T)
+function Imed_dphi(phi, phib, mu, T, M)
     quadgk(p -> p^2 * (dzminus_dphi(phi, phib, mu, T, M, p) + dzplus_dphi(phi, phib, mu, T, M, p)), 0, Inf)[1]
 end
+
+function DPHIPOT(phi, phib, mu, T, M)
+    return dU_dphi(phi, phib, mu, T) - (γ*T)*Imed_dphi(phi, phib, mu, T, M)/(2*Nc*pi^2)
+end
+
+function Imed_dphib(phi, phib, mu, T, M)
+    quadgk(p -> p^2 * (dzminus_dphib(phi, phib, mu, T, M, p) + dzplus_dphib(phi, phib, mu, T, M, p)), 0, Inf)[1]
+end
+
+function DPHIBPOT(phi, phib, mu, T, M)
+    return dU_dphib(phi, phib, mu, T) - (γ*T)*Imed_dphib(phi, phib, mu, T, M)/(2*Nc*pi^2)
+end
+
+function dzplus_dmu(phi, phib, mu, T, M, p)
+    a = phib*exp(-(Ep(p,M)+mu)/T) + 2*phi*exp(-2*(Ep(p,M)+mu)/T) + exp(-3*(Ep(p,M)+mu)/T)
+    b = 1 + 3*(phib + phi*exp(-(Ep(p,M) + mu)/T))*exp(-(Ep(p,M) + mu)/T) + exp(-3*(Ep(p,M) + mu)/T)
+    return (-3*mu*a)/(T*b)
+end
+
+function dzminus_dmu(phi, phib, mu, T, M, p)
+    a = phi*exp(-(Ep(p,M)-mu)/T) + 2*phib*exp(-2*(Ep(p,M)-mu)/T) + exp(-3*(Ep(p,M)-mu)/T)
+    b = 1 + 3*(phi + phib*exp(-(Ep(p,M) - mu)/T))*exp(-(Ep(p,M) - mu)/T) + exp(-3*(Ep(p,M) - mu)/T)
+    return (3*mu*a)/(T*b)
+end
+
+function dU_dmu(phi, phib, mu, T)
+    return 4*a1*mu^3*(phi*phib) + 2*a2*mu*T^2*(phi*phib)
+end
+
+function Imed_dmu(phi, phib, mu, T, M)
+    quadgk(p -> p^2 * (dzminus_dmu(phi, phib, mu, T, M, p) + dzplus_dmu(phi, phib, mu, T, M, p)), 0, Inf)[1]
+end
+
+function DMUPOT(phi, phib, mu, T, M)
+    return dU_dmu(phi, phib, mu, T) - (γ*T)*Imed_dmu(phi, phib, mu, T, M)/(2*Nc*pi^2)
+end
+
+

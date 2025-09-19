@@ -34,6 +34,47 @@ function gapsolver(mu, T)
     return [solalto.u[1], solalto.u[2], solalto.u[3]]
 end
 
+function gapsystem2!(du, u, p)
+    u[1] = clamp(u[1], 0.0, 1.0)
+    u[2] = clamp(u[2], 0.0, 1.0)
+    u[3] = max(u[3], 0.0)
+
+    du[1] = DPHIPOT(u[1], u[2], p[1], p[2], u[3])
+    du[2] = DPHIBPOT(u[1], u[2], p[1], p[2], u[3])
+    du[3] = DMPOT(u[1], u[2], p[1], p[2], u[3])
+end
+
+function gapsolveranalytical(mu, T)
+        chutealto = [0.01,0.01,0.34]
+    chutebaixo = [0.9,0.9,0.01]
+    ad = AutoFiniteDiff()
+
+    probalto = NonlinearProblem(gapsystem2!,chutealto, [mu, T])
+    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-10, maxiters = 100)
+    probbaixo = NonlinearProblem(gapsystem2!,chutebaixo, [mu, T])
+    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-10, maxiters = 100)
+
+    if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
+        return [solalto.u[1], solalto.u[2], solalto.u[3]]
+    elseif potentialmu(solbaixo.u[1], solbaixo.u[2], mu, T, solbaixo.u[3]) < potentialmu(solalto.u[1], solalto.u[2], mu, T, solalto.u[3])
+        return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
+    end
+    return [solalto.u[1], solalto.u[2], solalto.u[3]]
+end
+
+function nlsanalytical(mu, T, chute)
+    sol = nlsolve(x -> [DPHIPOT(x[1], x[2], mu, T, x[3]), DPHIBPOT(x[1], x[2], mu, T, x[3]), DMPOT(x[1], x[2], mu, T, x[3])], chute, autodiff=:forward)
+    return sol.zero
+end
+
+let 
+    nlsanalytical(0.3, 0.1, [0.01,0.01,0.34])
+end
+
+let
+    gapsolver(0.3, 0.1)
+end
+
 function murangesolver(mu, T)
     sols = zeros(length(mu), 3)
     Threads.@threads for i in eachindex(mu)
@@ -46,6 +87,14 @@ function gap_solverforT(mu, T)
     sols = zeros(length(T), 3)
     Threads.@threads for i in eachindex(T)
         sols[i, :] = gapsolver(mu, T[i])   # mu is scalar here
+    end
+    return sols
+end
+
+function gap_analyticalforT(mu, T)
+    sols = zeros(length(T), 3)
+    for i in eachindex(T)
+        sols[i, :] = gapsolveranalytical(mu, T[i])   # mu is scalar here
     end
     return sols
 end
@@ -160,9 +209,16 @@ begin
 end
 
 let 
-    Tr = range(0.01,0.3, length=100)
+    Tr = range(0.01,0.6, length=100)
     mu = 0.30
     sols = gap_solverforT(mu, Tr)
+    plot(Tr, sols[:,3])
+end
+
+let
+    Tr = range(0.01,0.6, length=100)
+    mu = 0.15
+    sols = gap_analyticalforT(mu, Tr)
     plot(Tr, sols[:,1])
 end
 
