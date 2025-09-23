@@ -1,9 +1,16 @@
 begin
     include("parametersmu.jl") 
     include("functionsmu.jl")
-    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve, NPZ
+    using QuadGK, Plots, NLsolve, CSV, DataFrames, ForwardDiff, DataInterpolations, LocalFunctionApproximation, Interpolations, NonlinearSolve, NPZ, Optim
+end
 
-    plotly()
+function maxfind(y,x)
+    for i in 20:length(y)-1
+        if y[i] > y[i-1] && y[i] > y[i+1]
+            return x[i], y[i]
+        end
+    end
+    return NaN, NaN
 end
 
 function gapsystem!(du, u, p)
@@ -45,14 +52,14 @@ function gapsystem2!(du, u, p)
 end
 
 function gapsolveranalytical(mu, T)
-        chutealto = [0.01,0.01,0.34]
+    chutealto = [0.01,0.01,0.34]
     chutebaixo = [0.9,0.9,0.01]
     ad = AutoFiniteDiff()
 
     probalto = NonlinearProblem(gapsystem2!,chutealto, [mu, T])
-    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-10, maxiters = 100)
+    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
     probbaixo = NonlinearProblem(gapsystem2!,chutebaixo, [mu, T])
-    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-10, maxiters = 100)
+    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
 
     if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
         return [solalto.u[1], solalto.u[2], solalto.u[3]]
@@ -60,15 +67,6 @@ function gapsolveranalytical(mu, T)
         return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
     end
     return [solalto.u[1], solalto.u[2], solalto.u[3]]
-end
-
-function nlsanalytical(mu, T, chute)
-    sol = nlsolve(x -> [DPHIPOT(x[1], x[2], mu, T, x[3]), DPHIBPOT(x[1], x[2], mu, T, x[3]), DMPOT(x[1], x[2], mu, T, x[3])], chute, autodiff=:forward)
-    return sol.zero
-end
-
-let 
-    nlsanalytical(0.3, 0.1, [0.01,0.01,0.34])
 end
 
 let
@@ -165,9 +163,8 @@ function interpot(pvals, muvals)
     return firstcurvex, firstcurvey, secondcurvex, secondcurvey
 end
 
-
 begin
-    T = range(0.005, 0.145, length=50)
+    T = range(0.005, 0.1502, length=50)
     sols = zeros(50, 2)
     potsols = CSV.read("potvals.csv", DataFrame)
     musols = CSV.read("mudensity.csv", DataFrame)
@@ -193,58 +190,105 @@ end
 
 # begin
 #     murng = range(0.0, 0.5, length = 100)
-#     Trng = range(0.005, 0.3, length = 70)
+#     Trng = range(0.15, 0.3, length = 70)
 #     sols = Trangesolver(murng, Trng)
 #     dfphi = DataFrame(sols[:,:,1], :auto)
 #     dfphiB = DataFrame(sols[:,:,2], :auto)
 #     dfM = DataFrame(sols[:,:,3], :auto)
-#     CSV.write("phisolutions.csv", dfphi)
-#     CSV.write("phibsolutions.csv", dfphiB)
-#     CSV.write("Msolutions.csv", dfM)
+#     CSV.write("phisolutions.csv", dfphi, writeheader=false)
+#     CSV.write("phibsolutions.csv", dfphiB, writeheader=false)
+#     CSV.write("Msolutions.csv", dfM, writeheader=false)
 # end
+
+begin
+    M_solutions = Matrix(CSV.read("Msolutions.csv", DataFrame; header=false))
+    phi_solutions = Matrix(CSV.read("phisolutions.csv", DataFrame; header=false))
+    phib_solutions = Matrix(CSV.read("phibsolutions.csv", DataFrame; header=false))
+end
 
 begin
     CEP = nlsolve(x -> [dMplkmu(x[1],x[2],x[3],x[4],x[5]), dphiplkmu(x[1],x[2],x[3],x[4],x[5]), dphibplkmu(x[1],x[2],x[3],x[4],x[5]), eq1(x[1],x[2],x[3],x[4],x[5]), eq2(x[1],x[2],x[3],x[4],x[5])], [0.15,0.22,0.31,0.15,0.1], autodiff=:forward)
     println("CEP: ", CEP.zero)
 end
 
-let 
-    Tr = range(0.01,0.6, length=100)
-    mu = 0.30
-    sols = gap_solverforT(mu, Tr)
-    plot(Tr, sols[:,3])
-end
+# begin 
+#     nbr = range(1e-10,0.07,length=200)
+#     Tr = range(0.01,0.1502,length=50)
+#     sols, potvals = Trange_density(Tr, nbr)
+#     phidensity = DataFrame(sols[:,:,1], :auto)
+#     phibdensity = DataFrame(sols[:,:,2], :auto)
+#     mudensity = DataFrame(sols[:,:,3], :auto)
+#     Mdensity = DataFrame(sols[:,:,4], :auto)
+#     potvalsdf = DataFrame(potvals[:,:], :auto)
+#     CSV.write("phidensity.csv", phidensity)
+#     CSV.write("phibdensity.csv", phibdensity)
+#     CSV.write("mudensity.csv", mudensity)
+#     CSV.write("Mdensity.csv", Mdensity)
+#     CSV.write("potvals.csv", potvalsdf)
+# end
 
-let
-    Tr = range(0.01,0.6, length=100)
-    mu = 0.15
-    sols = gap_analyticalforT(mu, Tr)
-    plot(Tr, sols[:,1])
-end
-
-begin 
-    nbr = range(1e-10,0.07,length=200)
-    Tr = range(0.01,0.17,length=50)
-    sols, potvals = Trange_density(Tr, nbr)
-    # phidensity = DataFrame(sols[:,:,1], :auto)
-    # phibdensity = DataFrame(sols[:,:,2], :auto)
-    # mudensity = DataFrame(sols[:,:,3], :auto)
-    # Mdensity = DataFrame(sols[:,:,4], :auto)
-    # potvalsdf = DataFrame(potvals[:,:], :auto)
-    # CSV.write("phidensity.csv", phidensity)
-    # CSV.write("phibdensity.csv", phibdensity)
-    # CSV.write("mudensity.csv", mudensity)
-    # CSV.write("Mdensity.csv", Mdensity)
-    # CSV.write("potvals.csv", potvalsdf)
-end
-
-begin
-    plot(sols[5,:,3], potvals[5,:])
+function Interpot(Mvals, phivals, phibvals, muvals)
+    itpM = interpolate((muvals,), Mvals, Gridded(Linear()))
+    itpPhi = interpolate((muvals,), phivals, Gridded(Linear()))
+    itpPhiB = interpolate((muvals,), phibvals, Gridded(Linear()))
+    dinterp = zeros(length(muvals), 3)
+    for i in eachindex(muvals)
+        dinterp[i,1] = only(Interpolations.gradient(itpM, muvals[i]))
+        dinterp[i,2] = -only(Interpolations.gradient(itpPhi, muvals[i]))
+        dinterp[i,3] = -only(Interpolations.gradient(itpPhiB, muvals[i])) 
+    end
+    return dinterp
 end
 
 begin
-    Tr = range(0.005,0.15,length=30)
-    nbr = range(1e-10,0.07,length=300)
-    sols = fofinder(Tr, nbr)
+    copoints = zeros(length(Trng), 4)
+    for i in eachindex(Trng)
+        dinterp = Interpot(M_solutions[i, :], phi_solutions[i, :], phib_solutions[i, :], murng)
+        
+        x1 = Vector{Float64}(murng)
+        y1 = Vector{Float64}(dinterp[:,1])
+        y2 = Vector{Float64}(dinterp[:,2])
+        y3 = Vector{Float64}(dinterp[:,3])
+
+        interpM = DataInterpolations.CubicSpline(y1, x1; extrapolation=ExtrapolationType.Linear)
+        interpPhi = DataInterpolations.CubicSpline(y2, x1; extrapolation=ExtrapolationType.Linear)
+        interpPhiB = DataInterpolations.CubicSpline(y3, x1; extrapolation=ExtrapolationType.Linear)
+    end
 end
 
+
+
+begin
+    ditp = Interpot(M_solutions[30, :], phi_solutions[30, :], phib_solutions[30, :], murng)
+
+    x1 = Vector{Float64}(murng)
+    y1 = Vector{Float64}(ditp[:,1])
+    y2 = Vector{Float64}(ditp[:,2])
+    y3 = Vector{Float64}(ditp[:,3])
+
+    interpM = DataInterpolations.QuadraticInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
+    interpPhi = DataInterpolations.QuadraticInterpolation(y2, x1; extrapolation=ExtrapolationType.Linear)
+    interpPhiB = DataInterpolations.QuadraticInterpolation(y3, x1; extrapolation=ExtrapolationType.Linear)
+
+
+end
+
+begin
+    plot(Trng, copoints[:,2], label="M", xlabel="T (GeV)", ylabel="Critical μ (GeV)", legend=:topright)
+end
+
+begin
+    murng = range(0.0, 0.5, length = 100)
+    Trng = range(0.15, 0.3, length = 70)
+    copoints = zeros(length(Trng), 4)
+    for i in eachindex(Trng)
+        dinterp = Interpot(M_solutions[i, :], phi_solutions[i, :], phib_solutions[i, :], murng)
+        maxdM = maxfind(dinterp[:,1], murng)[1]
+        maxdPhi = maxfind(dinterp[:,2], murng)[1]
+        maxdPhiB= maxfind(dinterp[:,3], murng)[1]
+        copoints[i, :] = [Trng[i], maxdM[1], maxdPhi[1], maxdPhiB[1]] 
+    end
+    plot(Trng, copoints[:,2], label="M", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
+    plot!(Trng, copoints[:,3], label="Φ", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
+    plot!(Trng, copoints[:,4], label="ΦB", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
+end
