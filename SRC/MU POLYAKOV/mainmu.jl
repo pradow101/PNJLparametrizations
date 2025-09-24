@@ -5,7 +5,7 @@ begin
 end
 
 function maxfind(y,x)
-    for i in 20:length(y)-1
+    for i in 70:length(y)-1
         if y[i] > y[i-1] && y[i] > y[i+1]
             return x[i], y[i]
         end
@@ -41,38 +41,6 @@ function gapsolver(mu, T)
     return [solalto.u[1], solalto.u[2], solalto.u[3]]
 end
 
-function gapsystem2!(du, u, p)
-    u[1] = clamp(u[1], 0.0, 1.0)
-    u[2] = clamp(u[2], 0.0, 1.0)
-    u[3] = max(u[3], 0.0)
-
-    du[1] = DPHIPOT(u[1], u[2], p[1], p[2], u[3])
-    du[2] = DPHIBPOT(u[1], u[2], p[1], p[2], u[3])
-    du[3] = DMPOT(u[1], u[2], p[1], p[2], u[3])
-end
-
-function gapsolveranalytical(mu, T)
-    chutealto = [0.01,0.01,0.34]
-    chutebaixo = [0.9,0.9,0.01]
-    ad = AutoFiniteDiff()
-
-    probalto = NonlinearProblem(gapsystem2!,chutealto, [mu, T])
-    solalto = solve(probalto, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
-    probbaixo = NonlinearProblem(gapsystem2!,chutebaixo, [mu, T])
-    solbaixo = solve(probbaixo, NewtonRaphson(; autodiff=ad), abstol=1e-8, maxiters = 100)
-
-    if abs(solalto.u[3] - solbaixo.u[3]) < 1e-4
-        return [solalto.u[1], solalto.u[2], solalto.u[3]]
-    elseif potentialmu(solbaixo.u[1], solbaixo.u[2], mu, T, solbaixo.u[3]) < potentialmu(solalto.u[1], solalto.u[2], mu, T, solalto.u[3])
-        return [solbaixo.u[1], solbaixo.u[2], solbaixo.u[3]]
-    end
-    return [solalto.u[1], solalto.u[2], solalto.u[3]]
-end
-
-let
-    gapsolver(0.3, 0.1)
-end
-
 function murangesolver(mu, T)
     sols = zeros(length(mu), 3)
     Threads.@threads for i in eachindex(mu)
@@ -89,18 +57,18 @@ function gap_solverforT(mu, T)
     return sols
 end
 
-function gap_analyticalforT(mu, T)
-    sols = zeros(length(T), 3)
-    for i in eachindex(T)
-        sols[i, :] = gapsolveranalytical(mu, T[i])   # mu is scalar here
-    end
-    return sols
-end
-
 function Trangesolver(mu, T)
     sols = zeros(length(T), length(mu), 3)
     Threads.@threads for i in eachindex(T)
         sols[i, :, :] = murangesolver(mu, T[i])   # pass scalar T[i]
+    end
+    return sols
+end
+
+function murange_forT(mu, T)
+    sols = zeros(length(mu), length(T), 3)
+    Threads.@threads for i in eachindex(mu)
+        sols[i, :, :] = gap_solverforT(mu[i], T)   # T is vector here
     end
     return sols
 end
@@ -185,13 +153,39 @@ begin
         sols[i, :] = [T[i], mucritico.zero[1]]
     end
     plot(sols[:,2], sols[:,1])
+    plot!(Tqrk, muqrk)
     scatter!([CEP.zero[3]], [CEP.zero[4]])
+    plot!(range_mu, [Mcrits, phicrits, phibcrits])
+end
+
+begin
+    muvls = range(0.0,0.315, length=15)
+    Tvls = range(0.01,0.5, length=1000)
+    sols = murange_forT(muvls, Tvls)
+    dfphi = DataFrame(sols[:,:,1], :auto)
+    dfphiB = DataFrame(sols[:,:,2], :auto)
+    dfM = DataFrame(sols[:,:,3], :auto)
+    CSV.write("phixTsols.csv", dfphi, writeheader=false)
+    CSV.write("phibxTsols.csv", dfphiB, writeheader=false)
+    CSV.write("MxTsols.csv", dfM, writeheader=false)
+end
+
+
+begin
+    phixT = Matrix(CSV.read("phixTsols.csv", DataFrame; header=false))
+    phibxT = Matrix(CSV.read("phibxTsols.csv", DataFrame; header=false))
+    MxT = Matrix(CSV.read("MxTsols.csv", DataFrame; header=false))
+end
+
+
+begin
+    plot(Tvls, MxT[1,:])
 end
 
 # begin
-#     murng = range(0.0, 0.5, length = 100)
-#     Trng = range(0.15, 0.3, length = 70)
-#     sols = Trangesolver(murng, Trng)
+#     murng = range(0.0, 0.5, length = 5000)
+#     Trng = range(0.1508, 0.3, length = 70)
+#     sols = Trangesolver(murng, Trng)000
 #     dfphi = DataFrame(sols[:,:,1], :auto)
 #     dfphiB = DataFrame(sols[:,:,2], :auto)
 #     dfM = DataFrame(sols[:,:,3], :auto)
@@ -233,53 +227,37 @@ function Interpot(Mvals, phivals, phibvals, muvals)
     itpPhiB = interpolate((muvals,), phibvals, Gridded(Linear()))
     dinterp = zeros(length(muvals), 3)
     for i in eachindex(muvals)
-        dinterp[i,1] = only(Interpolations.gradient(itpM, muvals[i]))
-        dinterp[i,2] = -only(Interpolations.gradient(itpPhi, muvals[i]))
-        dinterp[i,3] = -only(Interpolations.gradient(itpPhiB, muvals[i])) 
+        dinterp[i,1] = -only(Interpolations.gradient(itpM, muvals[i]))
+        dinterp[i,2] = only(Interpolations.gradient(itpPhi, muvals[i]))
+        dinterp[i,3] = only(Interpolations.gradient(itpPhiB, muvals[i])) 
     end
     return dinterp
 end
 
 begin
-    copoints = zeros(length(Trng), 4)
-    for i in eachindex(Trng)
-        dinterp = Interpot(M_solutions[i, :], phi_solutions[i, :], phib_solutions[i, :], murng)
-        
-        x1 = Vector{Float64}(murng)
-        y1 = Vector{Float64}(dinterp[:,1])
-        y2 = Vector{Float64}(dinterp[:,2])
-        y3 = Vector{Float64}(dinterp[:,3])
+    range_T = range(0.01, 0.5, length = 1000)
+    range_mu = range(0.0, 0.315, length = 15)
 
-        interpM = DataInterpolations.CubicSpline(y1, x1; extrapolation=ExtrapolationType.Linear)
-        interpPhi = DataInterpolations.CubicSpline(y2, x1; extrapolation=ExtrapolationType.Linear)
-        interpPhiB = DataInterpolations.CubicSpline(y3, x1; extrapolation=ExtrapolationType.Linear)
+    Mcrits = zeros(length(range_mu))
+    phicrits = zeros(length(range_mu))
+    phibcrits = zeros(length(range_mu))
+
+    for i in eachindex(range_mu)
+        ditp = Interpot(MxT[i, :], phixT[i, :], phibxT[i, :], range_T)
+
+        Mcrits[i] = maxfind(ditp[:,1], range_T)[1]
+        phicrits[i] = maxfind(ditp[:,2], range_T)[1]
+        phibcrits[i] = maxfind(ditp[:,3], range_T)[1]
     end
 end
 
-
-
 begin
-    ditp = Interpot(M_solutions[30, :], phi_solutions[30, :], phib_solutions[30, :], murng)
-
-    x1 = Vector{Float64}(murng)
-    y1 = Vector{Float64}(ditp[:,1])
-    y2 = Vector{Float64}(ditp[:,2])
-    y3 = Vector{Float64}(ditp[:,3])
-
-    interpM = DataInterpolations.QuadraticInterpolation(y1, x1; extrapolation=ExtrapolationType.Linear)
-    interpPhi = DataInterpolations.QuadraticInterpolation(y2, x1; extrapolation=ExtrapolationType.Linear)
-    interpPhiB = DataInterpolations.QuadraticInterpolation(y3, x1; extrapolation=ExtrapolationType.Linear)
-
-
-end
-
-begin
-    plot(Trng, copoints[:,2], label="M", xlabel="T (GeV)", ylabel="Critical μ (GeV)", legend=:topright)
+    plot(range_mu, [Mcrits, phicrits, phibcrits], labels = ["-dM/dT" "-dPhi/dT" "-dPhiB/dT"], xlabel = "μ (GeV)", ylabel = "T (GeV)", title = "Crossover lines")
 end
 
 begin
     murng = range(0.0, 0.5, length = 100)
-    Trng = range(0.15, 0.3, length = 70)
+    Trng = range(0.151, 0.3, length = 70)
     copoints = zeros(length(Trng), 4)
     for i in eachindex(Trng)
         dinterp = Interpot(M_solutions[i, :], phi_solutions[i, :], phib_solutions[i, :], murng)
@@ -288,7 +266,32 @@ begin
         maxdPhiB= maxfind(dinterp[:,3], murng)[1]
         copoints[i, :] = [Trng[i], maxdM[1], maxdPhi[1], maxdPhiB[1]] 
     end
-    plot(Trng, copoints[:,2], label="M", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
-    plot!(Trng, copoints[:,3], label="Φ", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
-    plot!(Trng, copoints[:,4], label="ΦB", xlabel="μ (GeV)", ylabel="T (GeV)", legend=:topright)
+    plot(Trng, copoints[:,2])
+    plot!(Trng, copoints[:,3])
+    plot!(Trng, copoints[:,4])
 end
+
+
+function quarkyonic(mu_r, t_r, sols)
+    T_quark = zeros(length(t_r))
+    mu_quark = zeros(length(t_r))
+    for i in 1:length(t_r)
+        for j in 1:length(mu_r)
+            if sols[i,j] < mu_r[j]
+                T_quark[i] = t_r[i]
+                mu_quark[i] = mu_r[j]
+                break
+            end
+        end
+    end
+    return mu_quark, T_quark
+end
+
+
+
+begin
+    mux = range(0,0.5,5000)
+    Tx = range(0.151, 0.3, 70)
+    muqrk, Tqrk = quarkyonic(mux, Tx, M_solutions)
+end
+
