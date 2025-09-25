@@ -152,23 +152,24 @@ begin
 
         sols[i, :] = [T[i], mucritico.zero[1]]
     end
-    plot(sols[:,2], sols[:,1])
-    plot!(Tqrk, muqrk)
-    scatter!([CEP.zero[3]], [CEP.zero[4]])
-    plot!(range_mu, [Mcrits, phicrits, phibcrits])
+    plta = plot(sols[:,2], sols[:,1], dpi=400)
+    plot!(plta, Tqrk, muqrk)
+    scatter!(plta, [CEP.zero[3]], [CEP.zero[4]])
+    plot!(plta, range_mu, [Mcrits, phicrits, phibcrits], linestyle=:dash)
+    savefig(plta, "phase_diagram.png")
 end
 
-begin
-    muvls = range(0.0,0.315, length=15)
-    Tvls = range(0.01,0.5, length=1000)
-    sols = murange_forT(muvls, Tvls)
-    dfphi = DataFrame(sols[:,:,1], :auto)
-    dfphiB = DataFrame(sols[:,:,2], :auto)
-    dfM = DataFrame(sols[:,:,3], :auto)
-    CSV.write("phixTsols.csv", dfphi, writeheader=false)
-    CSV.write("phibxTsols.csv", dfphiB, writeheader=false)
-    CSV.write("MxTsols.csv", dfM, writeheader=false)
-end
+# begin
+#     muvls = range(0.0,0.315, length=15)
+#     Tvls = range(0.01,0.5, length=1000)
+#     sols = murange_forT(muvls, Tvls)
+#     dfphi = DataFrame(sols[:,:,1], :auto)
+#     dfphiB = DataFrame(sols[:,:,2], :auto)
+#     dfM = DataFrame(sols[:,:,3], :auto)
+#     CSV.write("phixTsols.csv", dfphi, writeheader=false)
+#     CSV.write("phibxTsols.csv", dfphiB, writeheader=false)
+#     CSV.write("MxTsols.csv", dfM, writeheader=false)
+# end
 
 
 begin
@@ -254,23 +255,6 @@ end
 begin
     plot(range_mu, [Mcrits, phicrits, phibcrits], labels = ["-dM/dT" "-dPhi/dT" "-dPhiB/dT"], xlabel = "μ (GeV)", ylabel = "T (GeV)", title = "Crossover lines")
 end
-
-begin
-    murng = range(0.0, 0.5, length = 100)
-    Trng = range(0.151, 0.3, length = 70)
-    copoints = zeros(length(Trng), 4)
-    for i in eachindex(Trng)
-        dinterp = Interpot(M_solutions[i, :], phi_solutions[i, :], phib_solutions[i, :], murng)
-        maxdM = maxfind(dinterp[:,1], murng)[1]
-        maxdPhi = maxfind(dinterp[:,2], murng)[1]
-        maxdPhiB= maxfind(dinterp[:,3], murng)[1]
-        copoints[i, :] = [Trng[i], maxdM[1], maxdPhi[1], maxdPhiB[1]] 
-    end
-    plot(Trng, copoints[:,2])
-    plot!(Trng, copoints[:,3])
-    plot!(Trng, copoints[:,4])
-end
-
 
 function quarkyonic(mu_r, t_r, sols)
     T_quark = zeros(length(t_r))
